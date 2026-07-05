@@ -486,7 +486,7 @@ static bool smaller(const double* a, const double* b) {
 void matrix_adjust(int query_len, int target_len, const double* query_comp, const double* target_comp, int scale, double ungapped_lambda,
     const double* joint_probs, const double* background_freqs, const float* joint_probs_f, const float* background_freqs_f,
     array<int, AMINO_ACID_COUNT* AMINO_ACID_COUNT>& out, Statistics& stats) {
-    static const bool double_precision = false;
+    const bool double_precision = config.fpu_compat;
     array<int*, AMINO_ACID_COUNT> p;
     for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
         p[i] = &out[i * AMINO_ACID_COUNT];

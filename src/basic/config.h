@@ -370,6 +370,7 @@ struct Config
 	double relative_entropy_tolerance;
 	bool symmetrize_evalue;
 	std::string taxdump;
+	bool fpu_compat;
 
     SequenceType dbtype;
 

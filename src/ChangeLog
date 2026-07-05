@@ -29,6 +29,8 @@
 - Fixed a wrong `Illegal seek` error message when using a stream as input.
 - Added the `--max-oid` option to the `greedy-vertex-cover` workflow to interpret input
   edges as ordinal ids and set their maximum.
+- Added the option `--fpu-compat` for exact inter-architecture equality of floating point
+  computations when using `--comp-based-stats 6`.
 
 [2.2.2]
 - Fixed a crash in the `view` workflow (present since v2.2.0).

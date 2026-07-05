@@ -410,7 +410,8 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("length-ratio-threshold", 0, "Matrix adjust threshold", length_ratio_threshold, -1.0)
 		("cbs-angle", 0, "Matrix adjust threshold", cbs_angle, -1.0)
 		("linclust-banded-ext", 0, "Use banded instead of full matrix DP for linear searches", linclust_banded_ext)
-		("hit-membuf", 0, "Buffer intermediate hits in memory", hit_membuf);
+		("hit-membuf", 0, "Buffer intermediate hits in memory", hit_membuf)
+		("fpu-compat", 0, "Floating point operations compatibility mode", fpu_compat);
 
 	auto& advanced = parser.add_group("Advanced options", { blastp, blastx, blastn, regression_test });
 	advanced.add()
