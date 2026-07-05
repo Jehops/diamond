@@ -83,15 +83,15 @@ void reassign() {
 		config.subject_cover = 0;
 	}
 	config.sensitivity = from_string<Sensitivity>(cluster_steps(config.approx_min_id, false).back());
-	shared_ptr<Mapback> mapback = make_shared<Mapback>(members.size());
+	//shared_ptr<Mapback> mapback = make_shared<Mapback>(members.size());
 	std::unique_ptr<std::vector<BitVector>> target_seed_hits;
 	//Search::run(target_seed_hits, centroid_db, member_db, mapback);
 
 	timer.go("Updating clustering");
-	const int64_t n = update_clustering(clustering.begin(), mapback->centroid_id.cbegin(), members.cbegin(), members.cend(), centroids.cbegin());
+	//const int64_t n = update_clustering(clustering.begin(), mapback->centroid_id.cbegin(), members.cbegin(), members.cend(), centroids.cbegin());
 	timer.finish();
 	
-	*message_stream << "Reassigned members: " << n << '/' << members.size() << endl;
+	//*message_stream << "Reassigned members: " << n << '/' << members.size() << endl;
 
 	timer.go("Generating output");
 	if (flag_any(db->format_flags(), SequenceFile::FormatFlags::TITLES_LAZY))

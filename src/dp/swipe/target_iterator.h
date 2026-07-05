@@ -79,7 +79,7 @@ struct TargetIterator
 			const int j1 = std::min(qlen - 1 - d0, (int)(t.seq.length() - 1)) + 1;
 			cols = std::max(cols, j1 - pos[next]);
 			active.push_back(next);
-			if (config.comp_based_stats == ::Stats::CBS::MATRIX_ADJUST && !t.matrix)
+			if (config.comp_based_stats_.get(Stats::DEFAULT_CBS) == ::Stats::CBS::MATRIX_ADJUST && !t.matrix)
 				throw std::runtime_error("TargetIterator: No matrix provided for adjusted matrix.");
 			if (t.adjusted_matrix() && (t.matrix->score_max > SCHAR_MAX || t.matrix->score_min < SCHAR_MIN))
 				custom_matrix_16bit = true;

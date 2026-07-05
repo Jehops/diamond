@@ -24,7 +24,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hit_buffer.h"
 #include "basic/config.h"
 #include "util/log_stream.h"
-#include "util/io/output_file.h"
 #include "util/parallel/simple_thread_pool.h"
 #include "data/block/block.h"
 
@@ -58,7 +57,8 @@ HitBuffer::HitBuffer(const vector<Key>& key_partition, const string& tmpdir, boo
 	bins_processed_(0),
 	total_disk_size_(0),
 	load_worker_(nullptr),
-	load_exception_(nullptr)
+	load_exception_(nullptr),
+	aborted_(false)
 {
 	*log_stream << "Async_buffer() " << key_partition.back() << std::endl;
 	count_ = new atomic_size_t[key_partition.size()];
@@ -86,28 +86,45 @@ HitBuffer::HitBuffer(const vector<Key>& key_partition, const string& tmpdir, boo
 }
 
 void HitBuffer::write_worker(const std::atomic<bool>& stop, int bin) {
-	if (config.trace_pt_membuf) {
-		while(!stop) {
-			pair<int, vector<Hit>*> buf;
-			if (!membuf_out_queue_[bin]->wait_and_dequeue(buf))
-				break;
-			vector<Hit>& hits = hit_buf_[buf.first];
-			hits.insert(hits.end(), buf.second->begin(), buf.second->end());
-			delete buf.second;
+	try {
+		if (config.trace_pt_membuf) {
+			while(!stop) {
+				pair<int, vector<Hit>*> buf;
+				if (!membuf_out_queue_[bin]->wait_and_dequeue(buf))
+					break;
+				vector<Hit>& hits = hit_buf_[buf.first];
+				hits.insert(hits.end(), buf.second->begin(), buf.second->end());
+				delete buf.second;
+			}
+		}
+		else {
+			while (!stop) {
+				tuple<int, TextBuffer*, uint32_t> buf;
+				if (!out_queue_[bin]->wait_and_dequeue(buf))
+					break;
+				File& tmp_file = tmp_file_[std::get<0>(buf)];
+				tmp_file.write(std::get<1>(buf)->size());
+				tmp_file.write(std::get<2>(buf));
+				tmp_file.write(std::get<1>(buf)->data(), std::get<1>(buf)->size());
+				delete std::get<1>(buf);
+			}
 		}
 	}
-	else {
-		while (!stop) {
-			tuple<int, TextBuffer*, uint32_t> buf;
-			if (!out_queue_[bin]->wait_and_dequeue(buf))
-				break;
-			File& tmp_file = tmp_file_[std::get<0>(buf)];
-			tmp_file.write(std::get<1>(buf)->size());
-			tmp_file.write(std::get<2>(buf));
-			tmp_file.write(std::get<1>(buf)->data(), std::get<1>(buf)->size());
-			delete std::get<1>(buf);
-		}
+	catch (...) {
+		abort();
+		throw;
 	}
+}
+
+void HitBuffer::abort() noexcept {
+	if (aborted_.exchange(true, std::memory_order_acq_rel))
+		return;
+	for (auto q : membuf_out_queue_)
+		if (q)
+			q->abort();
+	for (auto q : out_queue_)
+		if (q)
+			q->abort();
 }
 
 void HitBuffer::finish_writing() {

@@ -21,8 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <numeric>
 #include <queue>
-#include "../io/temp_file.h"
-#include "../io/input_file.h"
+#include "../io/file.h"
 #define _REENTRANT
 #include "ips4o/ips4o.hpp"
 #include "basic/config.h"
@@ -105,11 +104,8 @@ private:
 	};
 
 	bool get_entry(size_t bucket, Entry& e) {
-		try {
-			deserialize((*files_[bucket]), e.value);
-		}
-		catch (EndOfStream&) {
-			files_[bucket]->close_and_delete();
+		if(!deserialize((*files_[bucket]), e.value)) {
+			files_[bucket]->close();
 			delete files_[bucket];
 			return false;
 		}
@@ -121,10 +117,11 @@ private:
 		std::vector<uint32_t> idx_(buf_.size());
 		std::iota(idx_.begin(), idx_.end(), 0);
 		ips4o::parallel::sort(idx_.begin(), idx_.end(), CmpIdx{ buf_.begin() }, config.threads_);
-		TempFile f;
+		File* f = new File(Temporary());
 		for (uint32_t i : idx_)
-			serialize(f, buf_[i]);
-		files_.push_back(new InputFile(f));
+			serialize(*f, buf_[i]);
+		f->rewind();
+		files_.push_back(f);
 		buf_.clear();
 		size_ = 0;
 	}
@@ -132,7 +129,7 @@ private:
 	const Cmp cmp_;
 	size_t count_;
 	size_t size_;
-	std::vector<InputFile*> files_;
+	std::vector<File*> files_;
 	std::vector<Type> buf_;
 	std::priority_queue<Entry> queue_;
 

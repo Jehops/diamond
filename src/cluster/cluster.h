@@ -28,7 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "dp/flags.h"
 #include "output/output_format.h"
 #include "util/algo/algo.h"
-#include "multinode/multinode.h"
+#include "multinode.h"
 
 class ClusteringAlgorithm {
 public:
@@ -63,8 +63,8 @@ template<typename Int>
 std::pair<std::vector<Int>, std::vector<Int>> split(const std::vector<Int>& mapping);
 std::vector<SuperBlockId> member_counts(const std::vector<SuperBlockId>& mapping);
 void init_thresholds();
-std::vector<BlockId> len_sorted_clust(const FlatArray<Util::Algo::Edge<SuperBlockId>>& edges);
-void output_edges(const std::string& file, SequenceFile& db, const std::vector<Util::Algo::Edge<SuperBlockId>>& edges);
+//std::vector<BlockId> len_sorted_clust(const FlatArray<Util::Algo::Edge<SuperBlockId>>& edges);
+//void output_edges(const std::string& file, SequenceFile& db, const std::vector<Util::Algo::Edge<SuperBlockId>>& edges);
 double round_value(const std::vector<std::string>& par, const std::string& name, int round, int round_count);
 
 template<typename Int, typename Int2>
@@ -75,7 +75,7 @@ std::vector<Int2> convert_mapping(const std::vector<Int>& mapping, Int2) {
 	return out;
 }
 
-struct Mapback : public Consumer {
+/*struct Mapback : public Consumer {
 	static constexpr OId NIL_VALUE = (OId)-1;
 	Mapback(int64_t count) :
 		centroid_id(count, NIL_VALUE)
@@ -101,7 +101,7 @@ struct Mapback : public Consumer {
 		return v;
 	}
 	std::vector<OId> centroid_id;
-};
+};*/
 
 template<typename It, typename It2>
 int64_t update_clustering(It clustering, It2 mapping, It2 query_begin, It2 query_end, It2 db_begin) {

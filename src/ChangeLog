@@ -1,3 +1,35 @@
+[2.2.3]
+- Clustering workflows now by default apply BLAST-like compositional matrix adjust,
+  unconditionally, instead of compositional score correction described by Hauser et al., 2016.
+- Clustering workflows now by default no longer apply tantan soft masking but conservative
+  SEG masking corresponding to BLAST defaults.
+- Added the `--comp-based-stats 6` option to enable compositional matrix adjust using
+  an optimized Sinkhorn–Knopp based algorithm.
+- Added the option `--taxdump` to set search path for NCBI taxdump files other than the
+  database directory.
+- Fixed a non-determinism in the greedy vertex cover workflow and transitively in the
+  clustering workflows (not affecting correctness of results).
+- Fixed a non-determinism in the clustering workflows (not affecting correctness of results).
+- Added the option `--masking seg-all` to apply SEG masking to both query and target
+  sequences.
+- Fixed `--comp-based-stats 2-5` not correctly applying SEG masking of targets by default
+  instead of tantan masking as documented.
+- Added the option `--reps` to set output FASTA file for representative sequences for the
+  clustering workflows (contributed by @bbuschkaemper).
+- Fixed a crash in the clustering workflows for large input files with high memory limit
+  parameter (contributed by @bbuschkaemper).
+- Fixed a potential issue in the linear stages of the clustering workflows when using a
+  very high memory limit parameter (contributed by @bbuschkaemper).
+- Added the option `--symmetrize-evalue` to maximize the evalue over both combinations
+  of query and target.
+- Fixed asymmetry of evalues in clustering workflows.
+- Fixed a potential issue that could cause hanging instead of correct termination in case
+  of an error.
+- Fixed a dash character as file name not being interpreted as stdin or stdout.
+- Fixed a wrong `Illegal seek` error message when using a stream as input.
+- Added the `--max-oid` option to the `greedy-vertex-cover` workflow to interpret input
+  edges as ordinal ids and set their maximum.
+
 [2.2.2]
 - Fixed a crash in the `view` workflow (present since v2.2.0).
 - Fixed a bug that could cause an error clustering a database with a single sequence.

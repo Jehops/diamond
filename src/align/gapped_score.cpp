@@ -215,7 +215,7 @@ vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, con
 			query_id,
 			Frame(frame),
 			source_query_len,
-			::Stats::CBS::hauser(config.comp_based_stats) ? query_cb[frame].int8.data() : nullptr,
+			::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
 			flags,
 			false,
 			0,
@@ -225,8 +225,8 @@ vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, con
 			&tp
 		};
 		DP::AnchoredSwipe::Config acfg{ query_seq[frame],
-			::Stats::CBS::hauser(config.comp_based_stats) ? query_cb[frame].int8.data() : nullptr,
-			0, stat, &tp, config.comp_based_stats == Stats::CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST, cfg.extension_mode, false };
+			::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
+			0, stat, &tp, config.comp_based_stats_.get(Stats::DEFAULT_CBS) == Stats::CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST, cfg.extension_mode, false };
 		list<Hsp> hsp = config.anchored_swipe
 			? DP::BandedSwipe::anchored_swipe(dp_targets[frame], acfg, pool) : DP::BandedSwipe::swipe(dp_targets[frame], params);
 		while (!hsp.empty())

@@ -50,6 +50,7 @@ void makeindex();
 void hash_seqs();
 void list_seeds();
 void merge_daa();
+void composition_matrix_workflow();
 void multinode();
 #ifdef EXTRA
 namespace Cluster {
@@ -179,6 +180,9 @@ int main(int ac, const char* av[])
 		case Config::GREEDY_VERTEX_COVER:
 			GVC::greedy_vertex_cover();
 			break;
+		/*case Config::COMPOSITION_MATRIX:
+			composition_matrix_workflow();
+			break;*/
 		case Config::CLUSTER_REASSIGN:
 			set_color(Color::YELLOW, true);
 			cerr << "Reassign has been temporarily removed for v2.2.1. No action was taken." << endl;
@@ -209,12 +213,8 @@ int main(int ac, const char* av[])
 		}
 	}
 	catch (const std::bad_alloc &e) {
-		cleanup();
 		cerr << "Failed to allocate sufficient memory. Please refer to the online wiki for instructions on memory usage." << endl;
 		*log_stream << "Error: " << e.what() << endl;
-		return 1;
-	}
-	catch (const FileOpenException&) {
 		cleanup();
 		return 1;
 	} catch(const std::exception& e) {

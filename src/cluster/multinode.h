@@ -176,9 +176,9 @@ private:
 };
 
 std::pair<std::string, uint64_t> get_reps(Job& job, const VolumedFile& volumes);
-void write_representatives(Job& job, const VolumedFile& volumes, const std::vector<OId>& merged);
-void merge(Job& job, const VolumedFile& volumes, Header hdr_format, const std::vector<OId>& merged);
+void merge(Job& job, const VolumedFile& volumes, Header hdr_format);
 //void extend(Job& job, std::vector<std::pair<OId, OId>>& out, const VolumedFile& volumes);
 std::string len_sort(Job& job, VolumedFile& volumes);
 std::vector<OId> build_merged(Job& job);
 void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, std::string base_dir, std::unique_ptr<std::vector<BitVector>>& seed_hit_table);
+std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, const Volume& vol, size_t v, std::pmr::memory_resource& pool, bool remove);

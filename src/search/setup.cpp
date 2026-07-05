@@ -371,8 +371,8 @@ void setup_search(Sensitivity sens, Search::Config& cfg)
 	cfg.soft_masking = soft_masking_algo(traits);
 	if (!config.soft_masking.empty())
 		cfg.soft_masking |= from_string<MaskingAlgo>(config.soft_masking);
-	cfg.cutoff_table = { cfg.ungapped_evalue };
-	cfg.cutoff_table_short = { cfg.ungapped_evalue_short };
+	cfg.cutoff_table = Util::Scores::CutoffTable { cfg.ungapped_evalue };
+	cfg.cutoff_table_short = Util::Scores::CutoffTable { cfg.ungapped_evalue_short };
 
 	if (config.ext_.empty()) {
 		if (config.global_ranking_targets || config.swipe_all || ((config.lin_stage1_query || cfg.lin_stage1_target || config.lin_stage1_combo) && !config.linclust_banded_ext))

@@ -125,7 +125,7 @@ struct Config
 	double space_penalty;
 	bool new_prefilter;
 	bool reverse;
-	unsigned comp_based_stats;
+	Option<int64_t> comp_based_stats_;
 	int neighborhood_score;
 	unsigned seed_weight;
 	int report_unaligned;
@@ -307,6 +307,7 @@ struct Config
 	string edge_format;
 	bool no_block_size_limit;
 	string edges;
+	Option<int64_t> max_oid;
 	bool mp_self;
 	bool approx_backtrace;
 	double narrow_band_cov;
@@ -360,11 +361,15 @@ struct Config
 	bool hit_membuf;
 	size_t minichunk;
 	std::string aln_out;
+	Option<int64_t> composition_matrix_sample_size;
 	std::string reps_out;
 	bool hamming_dist_boundary_check;
 	bool keep_temp_files;
 	std::string fasta_index_file;
 	int daa_build_version;
+	double relative_entropy_tolerance;
+	bool symmetrize_evalue;
+	std::string taxdump;
 
     SequenceType dbtype;
 
@@ -381,7 +386,7 @@ struct Config
 		smith_waterman = 26, cluster = 27, simulate_seqs = 31, split = 32, upgma = 33, upgma_mc = 34, regression_test = 35,
 		reverse_seqs = 36, compute_medoids = 37, mutate = 38, rocid = 40, makeidx = 41, find_shapes, prep_db, HASH_SEQS, LIST_SEEDS, CLUSTER_REALIGN,
 		GREEDY_VERTEX_COVER, CLUSTER_REASSIGN, blastn, RECLUSTER, MERGE_DAA, DEEPCLUST, LINCLUST, WORD_COUNT, CUT, MODEL_SEQS,
-		MAKE_SEED_TABLE
+		MAKE_SEED_TABLE, COMPOSITION_MATRIX
 	};
 
 	unsigned command;

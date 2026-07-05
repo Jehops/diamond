@@ -42,7 +42,7 @@ struct Scores
 		if (stop_match_score != 1)
 			data[24 * 32 + 24] = stop_match_score;
 	}
-	Scores(const MatrixFloat(&freq_ratios)[Stats::NCBI_ALPH][Stats::NCBI_ALPH], double lambda, const int8_t* scores, int scale);
+	Scores(const double(&freq_ratios)[Stats::NCBI_ALPH][Stats::NCBI_ALPH], double lambda, const int8_t* scores, int scale);
 	std::vector<const T*> pointers() const;
 	friend std::ostream& operator<<(std::ostream& s, const Scores& scores) {
 		for (int i = 0; i < 20; ++i) {
@@ -193,12 +193,20 @@ struct ScoreMatrix
 		db_letters_ = (double)n;
 	}
 
-	const MatrixFloat* joint_probs() const {
-		return (const MatrixFloat*)standard_matrix_->joint_probs;
+	const double* joint_probs() const {
+		return (const double*)standard_matrix_->joint_probs;
 	}
 
-	const MatrixFloat* background_freqs() const {
+	const double* background_freqs() const {
 		return standard_matrix_->background_freqs.data();
+	}
+
+	const float* joint_probs_f() const {
+		return standard_matrix_->joint_probs_f.data();
+	}
+
+	const float* background_freqs_f() const {
+		return standard_matrix_->background_freqs_f.data();
 	}
 
 	double ungapped_lambda() const {

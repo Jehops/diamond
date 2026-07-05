@@ -116,12 +116,8 @@ void FastaFile::print_info() const {
 }
 
 void FastaFile::close() {
-	if (out_file_)
-		file_.front().close();
-	else
-		for (auto& f : file_)
-			f.close();
-	
+	for (auto& f : file_)
+		f.close();	
 }
 
 void FastaFile::set_seqinfo_ptr(OId i) {
@@ -130,8 +126,6 @@ void FastaFile::set_seqinfo_ptr(OId i) {
 	if (i == 0) {
 		raw_chunk_no_ = 0;
 		oid_ = 0;
-		if (out_file_)
-			out_file_->rewind();
 		for (auto& f : file_)
 			f.rewind();
 		return;
@@ -387,21 +381,6 @@ void FastaFile::end_random_access(bool dictionary)
 	if (!dictionary)
 		return;
 	free_dictionary();
-}
-
-void FastaFile::init_write() {
-	out_file_->seek(0, SEEK_END);
-}
-
-void FastaFile::write_seq(const Sequence& seq, const std::string& id) {
-	static TextBuffer buf;
-	Util::Seq::format(seq, id.c_str(), nullptr,  buf, "fasta", value_traits_);
-	out_file_->write(buf.data(), buf.size());
-	buf.clear();
-	++seqs_;
-	letters_ += seq.length();
-	if (flag_any(flags_, Flags::NEED_LENGTH_LOOKUP))
-		seq_length_.push_back(seq.length());
 }
 
 pair<uint64_t, uint64_t> FastaFile::init_read() {

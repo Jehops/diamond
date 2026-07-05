@@ -60,3 +60,9 @@ typedef __int64 ssize_t;
 #define POSIX_OPEN(x,y,z) open(x,y,z)
 #define POSIX_OPEN2(x,y) open(x,y)
 #endif
+
+#if __cplusplus >= 201703L
+#define NODISCARD [[nodiscard]]
+#else
+#define NODISCARD
+#endif

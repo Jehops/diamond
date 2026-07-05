@@ -95,7 +95,7 @@ static Util::Seq::AccessionParsing load_mapping_file(ExternalSorter<pair<string,
 	return stats;
 }
 
-void TaxonList::build(OutputFile &db, ExternalSorter<pair<string, OId>>& acc2oid, OId seqs, Util::Table& stats)
+void TaxonList::build(File &db, ExternalSorter<pair<string, OId>>& acc2oid, OId seqs, Util::Table& stats)
 {
 	TaskTimer timer("Loading taxonomy mapping file");
 	ExternalSorter<pair<string, TaxId>> acc2taxid;

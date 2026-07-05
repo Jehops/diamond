@@ -57,7 +57,7 @@ struct MaskingStat {
 	std::array<uint64_t, 3> masked_letters;
 };
 
-enum class MaskingMode { NONE, TANTAN, BLAST_SEG };
+enum class MaskingMode { NONE, TANTAN, BLAST_SEG, BLAST_SEG_ALL };
 
 template<>
 struct EnumTraits<MaskingMode> {

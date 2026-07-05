@@ -156,10 +156,8 @@ void init_thresholds() {
 		config.member_cover.set_if_blank(DEFAULT_MEMBER_COVER);
 	if (!config.approx_min_id.present() && config.min_id == 0.0)
 		config.approx_min_id = config.command == ::Config::DEEPCLUST ? 0.0 : (config.command == ::Config::LINCLUST ? 90.0 : 50.0);
-	if (config.soft_masking.empty())
-		config.soft_masking = "tantan";
-	if (!config.masking_.present())
-		config.masking_ = "0";
+	//if (config.soft_masking.empty()) TODO
+		//config.soft_masking = "tantan";
 	// TODO
 	return;
 	if (config.approx_min_id < 90.0 || config.mutual_cover.present())
@@ -175,7 +173,7 @@ void init_thresholds() {
 	}
 }
 
-vector<BlockId> len_sorted_clust(const FlatArray<Util::Algo::Edge<SuperBlockId>>& edges) {
+/*vector<BlockId> len_sorted_clust(const FlatArray<Util::Algo::Edge<SuperBlockId>>& edges) {
 	static constexpr BlockId NIL = std::numeric_limits<BlockId>::max();
 	vector<BlockId> v(edges.size(), NIL);
 	for (uint64_t i = 0; i < edges.size(); ++i) {
@@ -187,7 +185,7 @@ vector<BlockId> len_sorted_clust(const FlatArray<Util::Algo::Edge<SuperBlockId>>
 				v[it->node2] = (BlockId)i;
 	}
 	return v;
-}
+}*/
 
 double round_value(const vector<string>& par, const string& name, int round, int round_count) {
 	if (par.empty())
@@ -241,5 +239,82 @@ static int64_t seq_mem_use(Loc len, Loc id_len, int c, int min, int sketch_size)
 //const int minimizer_window = Search::sensitivity_traits.at(Sensitivity::FASTER).minimizer_window,
 //sketch_size = Search::sensitivity_traits.at(Sensitivity::FASTER).sketch_size;
 //auto seq_size = function<int64_t(Loc)>(bind(seq_mem_use, std::placeholders::_1, 0, 1, minimizer_window, sketch_size));
+
+vector<string> cluster_steps(double approx_id, bool linear) {
+	if (!config.cluster_steps.empty()) {
+		for (vector<string>::const_iterator it = config.cluster_steps.begin() + 1; it != config.cluster_steps.end(); ++it) {
+			if (ends_with(*it, "_lin") && !ends_with(*(it - 1), "_lin"))
+				throw runtime_error("Invalid cluster step sequence: linear steps must be at the start of the list.");
+		}
+		return config.cluster_steps;
+	}
+	vector<string> v = { "faster_lin" };
+	if (approx_id < 90)
+		v.push_back("fast_lin");
+	if (approx_id < 40)
+		v.push_back("linclust-20_lin");
+	else if (approx_id < 80)
+		v.push_back("linclust-40_lin");
+	if (linear)
+		return v;
+	if (approx_id < 80)
+		v.push_back("default");
+	else
+		v.push_back("fast");
+	if (approx_id < 50)
+		v.push_back("more-sensitive");
+	return v;
+}
+
+bool is_linclust(const vector<string>& steps) {
+	for (const string& s : steps) {
+		if (!ends_with(s, "_lin"))
+			return false;
+	}
+	return true;
+}
+
+vector<string> default_round_approx_id(int steps) {
+	return {};
+	/*switch (steps) {
+	case 1:
+		return {};
+	case 2:
+		return { "27.0" };
+	default:
+		return { "27.0", "0.0" };
+	}*/
+}
+
+vector<string> default_round_cov(int steps) {
+	return {};
+	/*switch (steps) {
+	case 1:
+		return {};
+	case 2:
+		return { "85.0" };
+	default:
+		return { "87.0", "85.0" };
+	}*/
+}
+
+static int round_ccd(const string& depth) {
+	stringstream ss(depth);
+	int i;
+	ss >> i;
+	if (ss.fail() || !ss.eof())
+		throw runtime_error("Invalid number format for --connected-component-depth");
+	return i;
+}
+
+int round_ccd(std::vector<std::string> param, int round, int round_count, bool linear) {
+	if (param.size() > 1 && param.size() != (size_t)round_count)
+		throw runtime_error("Parameter count for --connected-component-depth has to be 1 or the number of cascaded clustering rounds.");
+	if (param.size() == 0)
+		return 0;
+	if (param.size() > 1)
+		return round_ccd(param[round]);
+	return (round == round_count - 1) ^ linear ? 1 : round_ccd(param[0]);
+}
 
 }

@@ -97,7 +97,7 @@ TaxonomyNodes::TaxonomyNodes(const string& file_name):
 	read_nodes_dmp(file_name, f);
 }
 
-void TaxonomyNodes::save(Serializer &out)
+void TaxonomyNodes::save(File &out)
 {
 	TaskTimer timer("Building taxonomy nodes");
 	serialize(out, parent_);

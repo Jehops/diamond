@@ -78,8 +78,8 @@ int count_true_aa(const Sequence& s) {
 }
 
 bool use_seg_masking(const Sequence& a, const Sequence& b) {
-    //if (config.comp_based_stats != CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST || a.length() != b.length())
-    return true;
+    if (config.comp_based_stats_.get(Stats::DEFAULT_CBS) != CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST || a.length() != b.length())
+        return true;
     Loc n = 0;
     for (Loc i = 0; i < a.length(); ++i)
         if (a[i] == b[i])
@@ -94,6 +94,8 @@ int TargetMatrix::score_width() const {
 EMatrixAdjustRule adjust_matrix(const Composition& query_comp, int query_len, unsigned cbs, const Sequence& target) {
     if (!CBS::matrix_adjust(cbs) || target.length() == 0 || query_len == 0)
         return eDontAdjustMatrix;
+    if (cbs == CBS::SINKHORN_MATRIX_ADJUST)
+        return eUserSpecifiedRelEntropy;
 
     //Masking::get()(target_seq.data(), target_seq.size(), Masking::Algo::SEG);
 
@@ -126,12 +128,13 @@ TargetMatrix::TargetMatrix(const Composition& query_comp, int query_len, unsigne
     //if (cbs == CBS::COMP_BASED_STATS) // || rule == eCompoScaleOldMatrix)
 		//throw std::runtime_error("Unsupported CBS code: " + std::to_string(cbs));
         //s = CompositionBasedStats(score_matrix.matrix32_scaled_pointers().data(), query_comp, c, score_matrix.ungapped_lambda(), score_matrix.freq_ratios());
-    //else if (cbs == CBS::HAUSER_GLOBAL)
-        //throw std::runtime_error("Unsupported CBS code: " + std::to_string(cbs));
-        //s = hauser_global(query_comp, c);
-    //else
     if (rule == eUserSpecifiedRelEntropy) {
-        CompositionMatrixAdjust(query_len, count_true_aa(target), query_comp.data(), c.data(), config.cbs_matrix_scale, score_matrix.ideal_lambda(), score_matrix.joint_probs(), score_matrix.background_freqs(), s, stats);
+        if (config.comp_based_stats_.get(Stats::DEFAULT_CBS) == CBS::SINKHORN_MATRIX_ADJUST) {
+            matrix_adjust(query_len, count_true_aa(target), query_comp.data(), c.data(), config.cbs_matrix_scale, score_matrix.ideal_lambda(),
+                score_matrix.joint_probs(), score_matrix.background_freqs(), score_matrix.joint_probs_f(), score_matrix.background_freqs_f(), s, stats);
+        }
+        else
+            CompositionMatrixAdjust(query_len, count_true_aa(target), query_comp.data(), c.data(), config.cbs_matrix_scale, score_matrix.ideal_lambda(), score_matrix.joint_probs(), score_matrix.background_freqs(), s, stats);
         stats.inc(Statistics::MATRIX_ADJUST_COUNT, 1);
     }
     else if (rule == eCompoScaleOldMatrix) {

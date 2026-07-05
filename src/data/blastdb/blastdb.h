@@ -71,8 +71,7 @@ struct BlastDB : public SequenceFile {
 	virtual Loc seq_length(size_t oid) override;
 	virtual void end_random_access(bool dictionary = true) override;
 	virtual std::vector<OId> accession_to_oid(const std::string& acc) const override;
-	virtual void init_write() override;
-	virtual void write_seq(const Sequence& seq, const std::string& id) override;
+	
 	virtual ~BlastDB();
 	const Pal& pal() const noexcept {
 		return pal_;

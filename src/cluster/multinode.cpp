@@ -138,13 +138,13 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 	if (job.last_round()) {
 		if (!config.fasta_index_file.empty())
 			remove_tmp_file(config.fasta_index_file);
-		if (config.reps_out.empty() || job.round() > 0)
+		if (config.reps_out.empty())
 			volumes.remove(job.round() > 0);
 	}
 	Atomic gvc_lock(base_dir + "gvc_lock", job);
 	Atomic gvc_done(base_dir + "gvc_done", job);
 	if (gvc_lock.fetch_add() == 0) {		
-		job.log("Running greedy vertex cover");		
+		job.log("Running greedy vertex cover");
 		const string acc_path = Cluster::gvc_input_rep_list(job.round(), job.root_dir(), &job, volumes.max_oid());
 		config.database = acc_path;
 		config.edges = aln_path;
@@ -156,13 +156,15 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 		GVC::greedy_vertex_cover(cfg);
 		remove_tmp_file(acc_path);
 		remove_tmp_file(aln_path);
-		if (!job.last_round()) {
+		if (!job.last_round() || !config.reps_out.empty()) {
 			job.log("Writing representative ids");
 			ifstream cl(config.output_file);
 			OId rep, member;
 			size_t vol = 0;
 			unique_ptr<ofstream> rep_out(new ofstream(job.base_dir() + "rep_ids" + std::to_string(vol)));
-			ofstream rep_out2(job.base_dir() + "rep_ids");
+			unique_ptr<ofstream> rep_out2;
+			if (!job.last_round())
+				rep_out2.reset(new ofstream(job.base_dir() + "rep_ids"));
 			while (cl >> rep >> member) {
 				while (volumes[vol].oid_end <= member) {
 					++vol;
@@ -170,7 +172,8 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 				}
 				if (rep == member) {
 					*rep_out << rep << endl;
-					rep_out2 << rep << endl;
+					if (rep_out2)
+						*rep_out2 << rep << endl;
 				}
 			}
 			rep_out->close();
@@ -274,10 +277,7 @@ void multinode() {
 	Atomic output_lock(job.root_dir() + PATH_SEPARATOR + "output_lock", job);
 	config.output_file = output_file;
 	if (output_lock.fetch_add() == 0) {
-		const vector<OId> merged = build_merged(job);
-		if (!config.reps_out.empty())
-			write_representatives(job, input_volumes, merged);
-		merge(job, input_volumes, hdr_format, merged);
+		merge(job, input_volumes, hdr_format);
 		job.log(job.stats());
 		output_lock.close();
 		lock.close();

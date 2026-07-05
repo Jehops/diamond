@@ -62,8 +62,6 @@ struct FastaFile : public SequenceFile
 	virtual void seq_data(size_t oid, std::vector<Letter>& dst) override;
 	virtual Loc seq_length(size_t oid) override;
 	virtual void end_random_access(bool dictionary = true) override;
-	virtual void init_write() override;
-	virtual void write_seq(const Sequence& seq, const std::string& id) override;
 	bool is_fasta() const noexcept {
 		return format_ == SeqFileFormat::FASTA;
 	}
@@ -82,7 +80,6 @@ private:
 	const std::string index_file_;
 	std::list<File> file_;
 	std::list<File>::iterator file_ptr_;
-	std::unique_ptr<OutputFile> out_file_;
 	std::vector<std::streampos> index_;
 	SeqFileFormat format_;
 	OId oid_;

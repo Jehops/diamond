@@ -68,7 +68,7 @@ void random_seqs()
 	const size_t count = atoi(config.seq_no[0].c_str());
 	while (n.size() < count)
 		n.insert((rand()*RAND_MAX + rand()) % r.size());
-	OutputFile out(config.output_file);
+	File out(config.output_file, "wb");
 	unsigned j = 0;
 	
 	std::string s;

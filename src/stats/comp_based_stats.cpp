@@ -51,8 +51,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <array>
 #include <vector>
 #include <math.h>
-#include "blast/matrix_adjust.h"
-#include "blast/linear_algebra.h"
+#include "matrix_adjust/linear_algebra_ncbi.h"
 #include "basic/value.h"
 #include "score_matrix.h"
 #include "cbs.h"
@@ -74,9 +73,9 @@ typedef struct Blast_ScoreFreq {
     int         score_max; /**< highest allowed scores */
     int         obs_min;   /**< lowest observed (actual) scores */
     int         obs_max;   /**< highest observed (actual) scores */
-    MatrixFloat       score_avg; /**< average score, must be negative for local alignment. */
-    MatrixFloat* sprob0;    /**< arrays for frequency of given score */
-    MatrixFloat* sprob;     /**< arrays for frequency of given score, shifted down by score_min. */
+    double       score_avg; /**< average score, must be negative for local alignment. */
+    double* sprob0;    /**< arrays for frequency of given score */
+    double* sprob;     /**< arrays for frequency of given score, shifted down by score_min. */
 } Blast_ScoreFreq;
 
 static int BLAST_Gcd(int a, int b)
@@ -95,13 +94,13 @@ static int BLAST_Gcd(int a, int b)
     return a;
 }
 
-static MatrixFloat
-NlmKarlinLambdaNR(MatrixFloat* probs, int d, int low, int high, MatrixFloat lambda0,
-    MatrixFloat tolx, int itmax, int maxNewton, int* itn)
+static double
+NlmKarlinLambdaNR(double* probs, int d, int low, int high, double lambda0,
+    double tolx, int itmax, int maxNewton, int* itn)
 {
     int k;
-    MatrixFloat x0, x, a = 0, b = 1;
-    MatrixFloat f = 4;  /* Larger than any possible value of the poly in [0,1] */
+    double x0, x, a = 0, b = 1;
+    double f = 4;  /* Larger than any possible value of the poly in [0,1] */
     int isNewton = 0; /* we haven't yet taken a Newton step. */
 
     assert(d > 0);
@@ -111,7 +110,7 @@ NlmKarlinLambdaNR(MatrixFloat* probs, int d, int low, int high, MatrixFloat lamb
 
     for (k = 0; k < itmax; k++) { /* all iteration indices k */
         int i;
-        MatrixFloat g, fold = f;
+        double g, fold = f;
         int wasNewton = isNewton; /* If true, then the previous step was a */
                                   /* Newton step */
         isNewton = 0;            /* Assume that this step is not */
@@ -158,8 +157,8 @@ NlmKarlinLambdaNR(MatrixFloat* probs, int d, int low, int high, MatrixFloat lamb
         }
         else {
             /* try a Newton step */
-            MatrixFloat p = -f / g;
-            MatrixFloat y = x + p;
+            double p = -f / g;
+            double y = x + p;
             if (y <= a || y >= b) { /* The proposed iterate is not in (a,b) */
                 x = (a + b) / 2;
             }
@@ -174,15 +173,15 @@ NlmKarlinLambdaNR(MatrixFloat* probs, int d, int low, int high, MatrixFloat lamb
     return -log(x) / d;
 }
 
-MatrixFloat
-Blast_KarlinLambdaNR(Blast_ScoreFreq* sfp, MatrixFloat initialLambdaGuess)
+double
+Blast_KarlinLambdaNR(Blast_ScoreFreq* sfp, double initialLambdaGuess)
 {
     int  low;        /* Lowest score (must be negative)  */
     int  high;       /* Highest score (must be positive) */
     int     itn;
     int i, d;
-    MatrixFloat* sprob;
-    MatrixFloat   returnValue;
+    double* sprob;
+    double   returnValue;
 
     low = sfp->obs_min;
     high = sfp->obs_max;
@@ -209,7 +208,7 @@ Blast_KarlinLambdaNR(Blast_ScoreFreq* sfp, MatrixFloat initialLambdaGuess)
 }
 
 double
-s_CalcLambda(MatrixFloat probs[], int min_score, int max_score, double lambda0)
+s_CalcLambda(double probs[], int min_score, int max_score, double lambda0)
 {
 
     int i;                 /* loop index */
@@ -256,15 +255,15 @@ static void s_GetScoreRange(int* obs_min, int* obs_max,
 }
 
 int
-s_GetMatrixScoreProbs(MatrixFloat** scoreProb, int* obs_min, int* obs_max,
+s_GetMatrixScoreProbs(double** scoreProb, int* obs_min, int* obs_max,
     const int* const* matrix, int alphsize,
-    const MatrixFloat* subjectProbArray,
-    const MatrixFloat* queryProbArray)
+    const double* subjectProbArray,
+    const double* queryProbArray)
 {
     int aa;          /* index of an amino-acid in the 20 letter
                         alphabet */
     int irow, jcol;  /* matrix row and column indices */
-    MatrixFloat* sprob;  /* a pointer to the element of the score
+    double* sprob;  /* a pointer to the element of the score
                         probabilities array that represents the
                         probability of the score 0*/
     int minScore;    /* smallest score in matrix; the same value as
@@ -274,7 +273,7 @@ s_GetMatrixScoreProbs(MatrixFloat** scoreProb, int* obs_min, int* obs_max,
     s_GetScoreRange(obs_min, obs_max, matrix, alphsize);
     minScore = *obs_min;
     range = *obs_max - *obs_min + 1;
-    *scoreProb = (MatrixFloat*)calloc(range, sizeof(MatrixFloat));
+    *scoreProb = (double*)calloc(range, sizeof(double));
     if (*scoreProb == NULL) {
         return -1;
     }
@@ -292,7 +291,7 @@ s_GetMatrixScoreProbs(MatrixFloat** scoreProb, int* obs_min, int* obs_max,
 }
 
 void
-Blast_FreqRatioToScore(MatrixFloat** matrix, size_t rows, size_t cols, MatrixFloat Lambda)
+Blast_FreqRatioToScore(double** matrix, size_t rows, size_t cols, double Lambda)
 {
     for (size_t i = 0; i < rows; i++) {
         for (size_t j = 0; j < cols; j++) {
@@ -308,7 +307,7 @@ Blast_FreqRatioToScore(MatrixFloat** matrix, size_t rows, size_t cols, MatrixFlo
 
 void
 s_RoundScoreMatrix(int** matrix, size_t rows, size_t cols,
-    MatrixFloat** floatScoreMatrix)
+    double** floatScoreMatrix)
 {
     for (size_t p = 0; p < rows; p++) {
         for (size_t c = 0; c < cols; c++) {
@@ -323,11 +322,11 @@ s_RoundScoreMatrix(int** matrix, size_t rows, size_t cols,
 }
 
 
-static MatrixFloat
-s_CalcAvgScore(MatrixFloat* M, int alphsize, int incM, const MatrixFloat probs[])
+static double
+s_CalcAvgScore(double* M, int alphsize, int incM, const double probs[])
 {
     int j;                   /* iteration index */
-    MatrixFloat score_iX = 0.0;   /* score of character i substituted by X */
+    double score_iX = 0.0;   /* score of character i substituted by X */
 
     for (j = 0; j < alphsize; j++) {
         //if (alphaConvert[j] >= 0) {
@@ -338,27 +337,27 @@ s_CalcAvgScore(MatrixFloat* M, int alphsize, int incM, const MatrixFloat probs[]
     return score_iX;
 }
 
-static const MatrixFloat kMaximumXscore = -1.0;
+static const double kMaximumXscore = -1.0;
 
-static MatrixFloat
-s_CalcXScore(MatrixFloat* M, int alphsize, int incM, const MatrixFloat probs[])
+static double
+s_CalcXScore(double* M, int alphsize, int incM, const double probs[])
 {
     return std::min(s_CalcAvgScore(M, alphsize, incM, probs), kMaximumXscore);
 }
 
 void
-s_SetXUOScores(MatrixFloat** M, int alphsize,
-    const MatrixFloat row_probs[], const MatrixFloat col_probs[])
+s_SetXUOScores(double** M, int alphsize,
+    const double row_probs[], const double col_probs[])
 {
     int i;                      /* iteration index */
-    MatrixFloat score_XX = 0.0;      /* score of matching an X to an X */
+    double score_XX = 0.0;      /* score of matching an X to an X */
     /* the matrix has alphsize colums (this variable exists just to
        make things easier to read) */
     const int cols = alphsize;
 
     for (i = 0; i < alphsize; i++) {
         //if (alphaConvert[i] >= 0) {
-        MatrixFloat avg_iX = s_CalcAvgScore(M[i], alphsize, 1, col_probs);
+        double avg_iX = s_CalcAvgScore(M[i], alphsize, 1, col_probs);
         M[i][MASK_LETTER] = std::min(avg_iX, kMaximumXscore);
         score_XX += avg_iX * row_probs[i];
 
@@ -394,10 +393,10 @@ s_SetXUOScores(MatrixFloat** M, int alphsize,
 
 static int
 s_ScaleSquareMatrix(int** matrix, int alphsize,
-    const MatrixFloat row_prob[], const MatrixFloat col_prob[],
-    double Lambda, const MatrixFloat(&freq_ratios)[NCBI_ALPH][NCBI_ALPH])
+    const double row_prob[], const double col_prob[],
+    double Lambda, const double(&freq_ratios)[NCBI_ALPH][NCBI_ALPH])
 {
-    MatrixFloat** scores;     /* a double precision matrix of scores */
+    double** scores;     /* a double precision matrix of scores */
 
     scores = Nlm_DenseMatrixNew(alphsize, alphsize);
     if (scores == 0) return -1;
@@ -420,14 +419,14 @@ s_ScaleSquareMatrix(int** matrix, int alphsize,
 }
 
 int
-Blast_CompositionBasedStats(int** matrix, MatrixFloat* LambdaRatio,
+Blast_CompositionBasedStats(int** matrix, double* LambdaRatio,
     const int* const* matrix_in,
-    const MatrixFloat queryProb[], const MatrixFloat resProb[], double lambda, const MatrixFloat(&freq_ratios)[NCBI_ALPH][NCBI_ALPH])
+    const double queryProb[], const double resProb[], double lambda, const double(&freq_ratios)[NCBI_ALPH][NCBI_ALPH])
 {
     double correctUngappedLambda; /* new value of ungapped lambda */
     int obs_min, obs_max;         /* smallest and largest score in the
                                      unscaled matrix */
-    MatrixFloat* scoreArray;           /* an array of score probabilities */
+    double* scoreArray;           /* an array of score probabilities */
     int out_of_memory;            /* status flag to indicate out of memory */
 
     out_of_memory = s_GetMatrixScoreProbs(&scoreArray, &obs_min, &obs_max, matrix_in, TRUE_AA, resProb, queryProb);
@@ -449,8 +448,8 @@ Blast_CompositionBasedStats(int** matrix, MatrixFloat* LambdaRatio,
      * -1 */
     *LambdaRatio = correctUngappedLambda / ungappedLambda;
     //if (0 == pValueAdjustment)
-    *LambdaRatio = std::min((MatrixFloat)1.0, *LambdaRatio);
-    *LambdaRatio = std::max(*LambdaRatio, (MatrixFloat)LambdaRatioLowerBound);
+    *LambdaRatio = std::min((double)1.0, *LambdaRatio);
+    *LambdaRatio = std::max(*LambdaRatio, (double)LambdaRatioLowerBound);
 
     if (*LambdaRatio > 0) {
         double scaledLambda = ungappedLambda / (*LambdaRatio);
@@ -470,7 +469,7 @@ bool CompositionBasedStats(const int* const* matrix_in, const Composition& query
     p.reserve(AMINO_ACID_COUNT);
     for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
         p.push_back(&out[i * AMINO_ACID_COUNT]);
-    MatrixFloat LambdaRatio;
+    double LambdaRatio;
     return Blast_CompositionBasedStats(p.data(), &LambdaRatio, matrix_in, queryProb.data(), resProb.data(), lambda, freq_ratios) == 0;
 }
 
@@ -498,11 +497,11 @@ static std::pair<char, double> Robinson_prob[] = {
       { 'Y', 32.16 }
 }; /**< amino acid background frequencies from Robinson and Robinson */
 
-MatrixFloat ideal_lambda(const int** matrix) {
+double ideal_lambda(const int** matrix) {
     int obs_min, obs_max;
-    MatrixFloat* scoreArray;
-    MatrixFloat bg[TRUE_AA];
-    MatrixFloat s = 0.0;
+    double* scoreArray;
+    double bg[TRUE_AA];
+    double s = 0.0;
     for (size_t i = 0; i < TRUE_AA; ++i) {
         int j = value_traits.from_char(Robinson_prob[i].first);
         bg[j] = Robinson_prob[i].second;

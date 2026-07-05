@@ -259,7 +259,7 @@ int ungapped_window(const Letter* query, const Letter* subject, int window) {
 Score self_score(const Sequence& seq)
 {
 	Score s = 0, sl = 0;
-	if (Stats::CBS::hauser(config.comp_based_stats)) {
+	if (Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS))) {
 		HauserCorrection cbs(seq);
 
 		for (Loc i = 0; i < seq.length(); ++i) {

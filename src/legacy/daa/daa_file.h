@@ -23,7 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/const.h"
 #include "util/binary_buffer.h"
 #include "util/io/file.h"
-#include "util/io/output_file.h"
 #include "basic/value.h"
 
 struct DAAFile;
@@ -217,6 +216,6 @@ private:
 	PtrVector<std::string> ref_name_;
 	std::vector<uint32_t> ref_len_;
 
-	friend void write_file(DAAFile&, OutputFile&);
+	friend void write_file(DAAFile&, File&);
 
 };

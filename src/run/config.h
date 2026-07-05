@@ -31,7 +31,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 struct DbFilter;
 struct SequenceFile;
-struct Consumer;
 struct TextInputFile;
 struct Block;
 struct TaxonomyNodes;

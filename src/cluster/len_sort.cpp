@@ -18,13 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <inttypes.h>
+#include <algorithm>
 #include <atomic>
-#include <cstdio>
 #include <exception>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 #include "multinode.h"
-#include "len_sort.h"
 #include "util/data_structures/queue.h"
 #include "util/parallel/simple_thread_pool.h"
 #include "util/log_stream.h"
@@ -42,74 +42,45 @@ using std::endl;
 using std::tie;
 using std::atomic;
 
-bool Cluster::Multinode::can_add_to_len_sorted_block(
-	uint64_t block_letters,
-	uint64_t block_seqs,
-	uint64_t seq_len,
-	uint64_t block_letter_limit,
-	uint64_t block_seq_limit,
-	uint64_t block_raw_limit)
-{
-	if (seq_len > block_raw_limit)
+static bool can_add(uint64_t block_letters, uint64_t block_seqs, uint64_t seq_len, uint64_t block_letter_limit) {
+	constexpr uint64_t RAW_LIMIT = (uint64_t(1) << 40) - 1;
+	if (seq_len > RAW_LIMIT)
 		return false;
-	if (block_letters > block_raw_limit - seq_len)
+	if (block_letters > RAW_LIMIT - seq_len)
 		return false;
-	const uint64_t raw_len = block_letters + seq_len + block_seqs + 1 + LEN_SORT_BLOCK_RAW_PADDING;
-	if (raw_len > block_raw_limit)
+	const uint64_t raw_len = block_letters + seq_len + block_seqs + 1 + 256;
+	if (raw_len > RAW_LIMIT)
 		return false;
 	if (block_seqs == 0)
 		return true;
-	if (block_seqs >= block_seq_limit)
+	if (block_seqs >= std::numeric_limits<BlockId>::max())
 		return false;
 	return block_letters + seq_len <= block_letter_limit;
 }
 
-struct OutputChunk {
-	static constexpr size_t POISON = std::numeric_limits<size_t>::max();
-	size_t output = POISON;
+struct OutputPart {
+	size_t file;
 	string data;
 	string accs;
-
-	bool operator==(const OutputChunk& rhs) const {
-		return output == rhs.output;
-	}
 };
 
-static void flush_buffer(TextBuffer& buffer, TextBuffer& acc_buffer, size_t output, vector<unique_ptr<Queue<OutputChunk>>>& queues, size_t writer_count) {
-	if (buffer.size() == 0)
-		return;
-	OutputChunk chunk;
-	chunk.output = output;
-	chunk.data.assign(buffer.data(), buffer.size());
-	chunk.accs.assign(acc_buffer.data(), acc_buffer.size());
-	queues[output % writer_count]->enqueue(std::move(chunk));
-	buffer.clear();
-	acc_buffer.clear();
-}
+struct OutputChunk {
+	static constexpr size_t POISON = std::numeric_limits<size_t>::max();
+	size_t order = POISON;
+	vector<OutputPart> parts;
+
+	bool operator==(const OutputChunk& rhs) const {
+		return order == rhs.order;
+	}
+};
 
 static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstream>>& out, vector<unique_ptr<ofstream>>& acc_out, const vector<pair<int, OId>>& block_mapping) {
 	job.log("Writing length sorted blocks");
 	OId oid = 0;
-	uint64_t bytes_written = 0;
+	atomic<uint64_t> bytes_written{ 0 };
 	const size_t writer_count = std::max<size_t>(1, std::min<size_t>(out.size(), std::max(1, config.threads_)));
 	const int formatter_count = std::max(1, config.threads_);
-	const size_t flush_size = 64 * 1024;
-	vector<unique_ptr<Queue<OutputChunk>>> queues;
 	SimpleThreadPool pool;
-	vector<std::thread::id> writer_threads;
-	queues.reserve(writer_count);
-	for (size_t i = 0; i < writer_count; ++i)
-		queues.emplace_back(new Queue<OutputChunk>(std::max<size_t>(16, formatter_count * 4), formatter_count, 1, OutputChunk()));
-	auto writer = [&](const atomic<bool>& stop, size_t writer_id) {
-		OutputChunk chunk;
-		while (!stop.load(std::memory_order_relaxed) && queues[writer_id]->wait_and_dequeue(chunk)) {
-			out[chunk.output]->write(chunk.data.data(), chunk.data.size());
-			acc_out[chunk.output]->write(chunk.accs.data(), chunk.accs.size());
-			bytes_written += chunk.data.size() + chunk.accs.size();
-		}
-	};
-	for (size_t i = 0; i < writer_count; ++i)
-		writer_threads.push_back(pool.spawn(writer, i));
 
 	auto process_volume = [&](const Volume& volume, ptrdiff_t idx) {
 		const SequenceFile::Flags flags = SequenceFile::Flags::ALL | SequenceFile::Flags::NEED_LETTER_COUNT;
@@ -131,39 +102,92 @@ static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstr
 				break;
 			}
 			const OId oid_begin = oid;
-			const size_t seq_count = b->seqs().size();
+			const size_t seq_count = b->seqs().size();			
+			const size_t target_chunks = std::max<size_t>(1, (size_t)formatter_count * 16);
+			const size_t chunk_size = std::max<size_t>(1, std::min<size_t>(seq_count / target_chunks + 1, (size_t)8192));
+			const size_t chunk_count = (seq_count + chunk_size - 1) / chunk_size;
+			
+			vector<unique_ptr<Queue<OutputChunk>>> queues;
+			queues.reserve(writer_count);
+			for (size_t i = 0; i < writer_count; ++i)
+				queues.emplace_back(new Queue<OutputChunk>(std::max<size_t>(16, formatter_count * 4), formatter_count, 1, OutputChunk()));
+
+			auto writer = [&](const atomic<bool>& stop, size_t writer_id) {
+				std::unordered_map<size_t, OutputChunk> pending;
+				size_t next_expected = 0;
+				OutputChunk chunk;
+				while (!stop.load(std::memory_order_relaxed) && queues[writer_id]->wait_and_dequeue(chunk)) {
+					pending.emplace(chunk.order, std::move(chunk));
+					auto it = pending.find(next_expected);
+					while (it != pending.end()) {
+						for (OutputPart& p : it->second.parts) {
+							out[p.file]->write(p.data.data(), p.data.size());
+							acc_out[p.file]->write(p.accs.data(), p.accs.size());
+							bytes_written.fetch_add(p.data.size() + p.accs.size(), std::memory_order_relaxed);
+						}
+						pending.erase(it);
+						++next_expected;
+						it = pending.find(next_expected);
+					}
+				}
+			};
+
 			atomic<size_t> next(0);
-			vector<std::thread::id> formatter_threads;
 			auto worker = [&](const atomic<bool>& stop) {
 				vector<TextBuffer> buffers(out.size());
 				vector<TextBuffer> acc_buffers(out.size());
-				size_t j;
-				while (!stop.load(std::memory_order_relaxed) && (j = next.fetch_add(1, std::memory_order_relaxed), j < seq_count)) {
-					const OId seq_oid = oid_begin + (OId)j;
-					const size_t block = (size_t)block_mapping[seq_oid].first;
-					const string new_oid = std::to_string(block_mapping[seq_oid].second);
-					Util::Seq::format(b->seqs()[j], new_oid.c_str(), nullptr, buffers[block], "fasta", amino_acid_traits);
-					acc_buffers[block] << new_oid << '\t';
-					acc_buffers[block] << Util::Seq::seqid(b->ids()[j]) << '\n';
-					if (buffers[block].size() >= flush_size)
-						flush_buffer(buffers[block], acc_buffers[block], block, queues, writer_count);
+				size_t c;
+				while (!stop.load(std::memory_order_relaxed) && (c = next.fetch_add(1, std::memory_order_relaxed), c < chunk_count)) {
+					const size_t j_begin = c * chunk_size;
+					const size_t j_end = std::min(j_begin + chunk_size, seq_count);
+					for (size_t j = j_begin; j < j_end; ++j) {
+						const OId seq_oid = oid_begin + (OId)j;
+						const size_t block = (size_t)block_mapping[seq_oid].first;
+						const string new_oid = std::to_string(block_mapping[seq_oid].second);
+						Util::Seq::format(b->seqs()[j], new_oid.c_str(), nullptr, buffers[block], "fasta", amino_acid_traits);
+						acc_buffers[block] << new_oid << '\t';
+						acc_buffers[block] << Util::Seq::seqid(b->ids()[j]) << '\n';
+					}					
+					vector<OutputChunk> bundles(writer_count);
+					for (size_t w = 0; w < writer_count; ++w)
+						bundles[w].order = c;
+					for (size_t block = 0; block < buffers.size(); ++block) {
+						if (buffers[block].size() == 0)
+							continue;
+						OutputPart part;
+						part.file = block;
+						part.data.assign(buffers[block].data(), buffers[block].size());
+						part.accs.assign(acc_buffers[block].data(), acc_buffers[block].size());
+						bundles[block % writer_count].parts.push_back(std::move(part));
+						buffers[block].clear();
+						acc_buffers[block].clear();
+					}
+					for (size_t w = 0; w < writer_count; ++w)
+						queues[w]->enqueue(std::move(bundles[w]));
 				}
-				for (size_t block = 0; block < buffers.size(); ++block)
-					flush_buffer(buffers[block], acc_buffers[block], block, queues, writer_count);
 				};
+
+			vector<std::thread::id> writer_threads;
+			for (size_t i = 0; i < writer_count; ++i)
+				writer_threads.push_back(pool.spawn(writer, i));
+			vector<std::thread::id> formatter_threads;
 			for (int j = 0; j < formatter_count; ++j)
 				formatter_threads.push_back(pool.spawn(worker));
 			try {
 				pool.join(formatter_threads.begin(), formatter_threads.end());
 			}
 			catch (...) {
-				delete b;
 				for (int i = 0; i < formatter_count; ++i)
 					for (auto& q : queues)
 						q->close();
 				pool.join(writer_threads.begin(), writer_threads.end());
+				delete b;
 				throw;
-			}
+			}			
+			for (int i = 0; i < formatter_count; ++i)
+				for (auto& q : queues)
+					q->close();
+			pool.join(writer_threads.begin(), writer_threads.end());
 			oid += (OId)seq_count;
 			delete b;
 		}
@@ -174,11 +198,8 @@ static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstr
 		process_volume(*i, i - volumes.begin());
 	}
 	const int64_t t = timer.microseconds();
-	job.log("Wrote %zu bytes to disk at %.2f MB/s", bytes_written, (double)bytes_written / MEGABYTES / (t / 1e6));
-	for (int i = 0; i < formatter_count; ++i)
-		for (auto& q : queues)
-			q->close();
-	pool.join(writer_threads.begin(), writer_threads.end());
+	const uint64_t total_bytes = bytes_written.load();
+	job.log("Wrote %zu bytes to disk at %.2f MB/s", total_bytes, (double)total_bytes / MEGABYTES / (t / 1e6));
 	for (const auto& file : out)
 		if (!*file)
 			throw runtime_error("Error writing length sorted block");
@@ -190,10 +211,8 @@ static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstr
 string len_sort(Job& job, VolumedFile& volumes) {
 	Atomic lock(job.root_dir() + "lensort_lock", job), done(job.root_dir() + "lensort_done", job);
 	const bool first_round_linear = job.is_linear_round();
-	const string input_parts = job.root_dir() + "input.tsv", input_letters = job.root_dir() + "input_letters.txt", error_file = job.root_dir() + "lensort_error";
+	const string input_parts = job.root_dir() + "input.tsv", input_letters = job.root_dir() + "input_letters.txt";
 	if (lock.fetch_add() == 0) {
-		try {
-		std::remove(error_file.c_str());
 		job.log("Memory limit = %" PRIu64, job.mem_limit);
 		vector<pair<Loc, OId>> lengths;
 		uint64_t letters = 0;
@@ -238,7 +257,7 @@ string len_sort(Job& job, VolumedFile& volumes) {
 		} else
 			tie(block_gb, index_chunks) = ::block_size(job.mem_limit, letters, Sensitivity::FAST, true, config.threads_); // TODO take cluster steps into account here
 		const uint64_t block_size = gb_to_bytes(block_gb);
-		job.log("Block size = %" PRIu64 ", index chunks = %d, max sequences per block = %" PRIu64, block_size, index_chunks, Cluster::Multinode::LEN_SORT_BLOCK_SEQ_LIMIT);
+		job.log("Block size = %" PRIu64 ", index chunks = %d", block_size, index_chunks);
 		ips4o::parallel::sort(lengths.begin(), lengths.end(), std::greater<pair<Loc, OId>>(), config.threads_);
 		ofstream idx(input_parts);
 		vector<unique_ptr<ofstream>> out;
@@ -248,7 +267,7 @@ string len_sort(Job& job, VolumedFile& volumes) {
 		OId new_oid = 0;
 		for (vector<pair<Loc, OId>>::const_iterator i = lengths.begin(); i != lengths.end();) {
 			uint64_t block_letters = 0, seqs = 0;
-			while (i != lengths.end() && Cluster::Multinode::can_add_to_len_sorted_block(block_letters, seqs, i->first, block_size)) {
+			while (i != lengths.end() && can_add(block_letters, seqs, i->first, block_size)) {
 				block_letters += i->first;
 				block_mapping[i->second] = { block, new_oid++ };
 				++i;
@@ -256,8 +275,6 @@ string len_sort(Job& job, VolumedFile& volumes) {
 			}
 			if (seqs == 0)
 				throw runtime_error("Sequence exceeds supported maximum block size.");
-			if (!first_round_linear && i != lengths.end())
-				throw runtime_error("The first clustering round requires multiple input blocks. Start with a linear clustering round or lower the input size.");
 			ss << seqs << '\t' << block_letters << endl;
 			const string block_idx = std::to_string(block);
 			const string name = job.root_dir() + "input" + block_idx + ".faa";
@@ -268,23 +285,10 @@ string len_sort(Job& job, VolumedFile& volumes) {
 		}
 		job.log(ss.str().c_str());
 		write_blocks(job, volumes, out, acc_out, block_mapping);
-		done.fetch_add();
-		} catch (const std::exception& e) {
-			ofstream error_out(error_file);
-			error_out << e.what() << endl;
-			error_out.close();
-			done.fetch_add();
-			throw;
-		}
+		done.fetch_add();		
 	}
 	else
-		done.await(1);
-	ifstream error_in(error_file);
-	if (error_in) {
-		string message;
-		getline(error_in, message);
-		throw runtime_error(message.empty() ? "Length sorting failed." : message);
-	}
+		done.await(1);	
 	uint64_t letters, seq_count;
 	ifstream input_letters_file(input_letters);
 	input_letters_file >> letters >> seq_count;

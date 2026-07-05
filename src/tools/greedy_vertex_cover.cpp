@@ -32,19 +32,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/algo/algo.h"
 #include "util/system/system.h"
 #include "cluster/cluster.h"
-#include "cluster/multinode/file_array.h"
-#include "cluster/multinode/input_buffer.h"
+#include "cluster/file_array.h"
+#include "cluster/input_buffer.h"
 #include "util/memory/memory_resource.h"
 #include "tools.h"
 #include "data/fasta/parser.h"
 
-namespace Util { namespace Algo {
-inline void serialize(const Edge<uint64_t>& e, CompressedBuffer& buf) {
+struct Edge {
+	static constexpr bool POD = true;
+	Edge()
+	{
+	}
+	using Key = OId;
+	Edge(Key node1, Key node2, double weight) :
+		node1(node1),
+		node2(node2),
+		weight(weight)
+	{
+	}
+	bool operator<(const Edge& e) const noexcept {
+		if (node1 != e.node1)
+			return node1 < e.node1;
+		if (node2 != e.node2)
+			return node2 < e.node2;
+		return weight > e.weight;
+	}
+	struct GetKey {
+		OId operator()(const Edge& e) const {
+			return e.node1;
+		}
+	};
+	OId node1, node2;
+	double weight;
+};
+
+inline void serialize(const Edge& e, CompressedBuffer& buf) {
 	buf.write(e.node1);
 	buf.write(e.node2);
 	buf.write(e.weight);
 }
-}}
 
 using std::unique_ptr;
 using std::ofstream;
@@ -63,8 +89,6 @@ using std::numeric_limits;
 using std::deque;
 using std::pair;
 using Acc = string;
-using Int = uint64_t;
-using Edge = Util::Algo::Edge<Int>;
 
 namespace GVC {
 
@@ -124,7 +148,7 @@ static void greedy_vertex_cover(vector<OId>& clustering, vector<double>& weights
 	}
 }
 
-static RadixedTable edge_pass_one(const string& base_dir, const OId max_oid, bool triplets, bool symmetric, double cov, const unordered_map<Acc, OId>& acc2oid) {
+static RadixedTable edge_pass_one(const string& base_dir, const OId max_oid, bool triplets, bool symmetric, double cov, const unordered_map<Acc, OId>* acc2oid) {
 	mkdir(base_dir);
 	FileArray file_array(base_dir, RADIX_COUNT, 0, true);
 	const int shift = std::max(bit_length(max_oid) - RADIX_BITS, 0);
@@ -136,8 +160,9 @@ static RadixedTable edge_pass_one(const string& base_dir, const OId max_oid, boo
 		Util::String::LineIterator it(begin, end);
 		thread_local BufferArray buffers(file_array, RADIX_COUNT);
 		string query, target;
+		OId q, t;
 		double qcov, tcov, weight;
-		auto emit = [&](Int n1, Int n2, double w) {
+		auto emit = [&](OId n1, OId n2, double w) {
 			Edge edge(n1, n2, w);
 			const uint64_t radix = (uint64_t)n1 >> shift;
 			buffers.write(radix, &edge, 1, 1);
@@ -148,12 +173,21 @@ static RadixedTable edge_pass_one(const string& base_dir, const OId max_oid, boo
 			if (ends_with(line, "\r"))
 				line.pop_back();
 			Util::String::Tokenizer<Util::String::CharDelimiter> tok(line, Util::String::CharDelimiter('\t'));
-			tok >> query >> target;
+			if (acc2oid)
+				tok >> query >> target;
+			else {
+				tok >> q >> t;
+				if (q > max_oid || t > max_oid)
+					throw runtime_error("Numeric vertex ID exceeds --max-id");
+			}
 			if (!triplets)
 				tok >> qcov >> tcov;
 			tok >> weight;
 			if (triplets || tcov >= cov || qcov >= cov) {
-				const auto q = acc2oid.at(query), t = acc2oid.at(target);
+				if (acc2oid) {
+					q = acc2oid->at(query);
+					t = acc2oid->at(target);
+				}
 				if (q == t) {
 					++it;
 					continue;
@@ -278,41 +312,59 @@ static vector<OId> edge_pass_four(const RadixedTable& degree_sorted, OId db_size
 }
 
 void greedy_vertex_cover(Cfg& cfg) {
-	config.database.require();
 	const double cov = std::max(config.query_or_target_cover, config.member_cover.get(Cluster::DEFAULT_MEMBER_COVER));
 	const bool triplets = config.edge_format == "triplet", symmetric = config.symmetric;
+	const bool numeric_ids = config.max_oid.present();
 	if (!triplets && symmetric)
 		throw runtime_error("--symmetric requires triplet edge format");
 	*message_stream << "Coverage cutoff: " << cov << '%' << endl;
 	*message_stream << "Edge format: " << (triplets ? "triplet" : "quintuplet") << endl;
 	*message_stream << "Symmetric: " << (symmetric ? "yes" : "no") << endl;
-	TaskTimer timer("Reading mapping file");
+	TaskTimer timer;
 	unordered_map<Acc, OId> acc2oid;
-	acc2oid.reserve(File::count_lines(config.database));
-	File mapping_file(config.database, "rb");
-	string query;
-	const char* line;
-	while (line = mapping_file.getline(), line[0] != '\0' || !mapping_file.eof()) {
-		Util::String::Tokenizer<Util::String::CharDelimiter>(line, Util::String::CharDelimiter('\t')) >> query;
-		auto e = acc2oid.emplace(query, acc2oid.size());
-		if (!e.second)
-			throw runtime_error("Duplicate sequence id found in database file");
+	OId max_oid;
+	size_t db_size;
+	if (numeric_ids) {
+		if (config.max_oid < 0)
+			throw runtime_error("--max-oid must be nonnegative");
+		max_oid = config.max_oid;
+		if (max_oid >= numeric_limits<size_t>::max())
+			throw runtime_error("--max-id exceeds supported maximum");
+		db_size = static_cast<size_t>(max_oid) + 1;
+		*message_stream << "#Numeric vertex OIDs: " << db_size << endl;
 	}
-	mapping_file.close();
-	timer.finish();
-	*message_stream << "#Sequences in database: " << acc2oid.size() << endl;
-	if (acc2oid.size() > (size_t)numeric_limits<Int>::max())
-		throw runtime_error("Input count exceeds supported maximum.");
-	const OId max_oid = acc2oid.size() - 1;
+	else {
+		config.database.require();
+		timer.go("Reading mapping file");
+		acc2oid.reserve(File::count_lines(config.database));
+		File mapping_file(config.database, "rb");
+		string query;
+		const char* line;
+		while (line = mapping_file.getline(), line[0] != '\0' || !mapping_file.eof()) {
+			Util::String::Tokenizer<Util::String::CharDelimiter>(line, Util::String::CharDelimiter('\t')) >> query;
+			auto e = acc2oid.emplace(query, acc2oid.size());
+			if (!e.second)
+				throw runtime_error("Duplicate sequence id found in database file");
+		}
+		mapping_file.close();
+		timer.finish();
+		*message_stream << "#Sequences in database: " << acc2oid.size() << endl;
+		if (acc2oid.empty())
+			throw runtime_error("Database file is empty");
+		if (acc2oid.size() > (size_t)numeric_limits<OId>::max())
+			throw runtime_error("Input count exceeds supported maximum.");
+		db_size = acc2oid.size();
+		max_oid = db_size - 1;
+	}
 
 	if (cfg.tmp_dir.empty())
 		cfg.tmp_dir = config.tmpdir = create_temp_directory(config.tmpdir, "diamond-tmp-") + PATH_SEPARATOR;
 	const string base_dir = cfg.tmp_dir;
 	//mkdir(base_dir);
-	RadixedTable rep_sorted = edge_pass_one(base_dir + "rep_sorted" + PATH_SEPARATOR, max_oid, triplets, symmetric, cov, acc2oid);
+	RadixedTable rep_sorted = edge_pass_one(base_dir + "rep_sorted" + PATH_SEPARATOR, max_oid, triplets, symmetric, cov, numeric_ids ? nullptr : &acc2oid);
 	const DegreePartition p = edge_pass_two(rep_sorted);
 	RadixedTable degree_sorted = edge_pass_three(rep_sorted, p, cfg);
-	vector<OId> clustering = edge_pass_four(degree_sorted, acc2oid.size(), cfg);
+	vector<OId> clustering = edge_pass_four(degree_sorted, db_size, cfg);
 	rmdir(cfg.tmp_dir);
 
 	if (merge_recursive) {
@@ -325,11 +377,14 @@ void greedy_vertex_cover(Cfg& cfg) {
 		}
 	}
 
-	timer.go("Building reverse mapping");
 	std::pmr::monotonic_buffer_resource pool;
-	std::pmr::vector<std::pmr::string> acc(acc2oid.size(), &pool);
-	for (const auto& i : acc2oid)
-		acc.at(i.second) = i.first;
+	std::pmr::vector<std::pmr::string> acc(&pool);
+	if (!numeric_ids) {
+		timer.go("Building reverse mapping");
+		acc.resize(acc2oid.size());
+		for (const auto& i : acc2oid)
+			acc.at(i.second) = i.first;
+	}
 	acc2oid.clear();
 
 	timer.go("Generating output");
@@ -345,11 +400,19 @@ void greedy_vertex_cover(Cfg& cfg) {
 			clustering[i] = i;
 		if (clustering[i] == i) {
 			++reps;
-			if (!config.centroid_out.empty())
-				*centroid_out << acc[i] << endl;
+			if (!config.centroid_out.empty()) {
+				if (numeric_ids)
+					*centroid_out << i << endl;
+				else
+					*centroid_out << acc[i] << endl;
+			}
 		}
-		if (!config.output_file.empty())
-			*out << acc[clustering[i]] << '\t' << acc[i] << endl;
+		if (!config.output_file.empty()) {
+			if (numeric_ids)
+				*out << clustering[i] << '\t' << i << endl;
+			else
+				*out << acc[clustering[i]] << '\t' << acc[i] << endl;
+		}
 	}
 	if (centroid_out)
 		centroid_out->close();

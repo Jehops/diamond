@@ -133,31 +133,55 @@ struct HitBuffer
 		void flush(int bin, bool done)
 		{
 			if(config.trace_pt_membuf) {
+				if (buffer_[bin] == nullptr)
+					return;
 				if (buffer_[bin]->size() == 0) {
 					delete buffer_[bin];
+					buffer_[bin] = nullptr;
 					return;
 				}
-				parent_.membuf_out_queue_[bin]->enqueue(std::pair<int, std::vector<Hit>*>(bin, buffer_[bin]));
+				if (!parent_.membuf_out_queue_[bin]->enqueue_or_abort(std::pair<int, std::vector<Hit>*>(bin, buffer_[bin]))) {
+					delete buffer_[bin];
+					buffer_[bin] = nullptr;
+					if (!done)
+						throw std::runtime_error("Write error in HitBuffer");
+					return;
+				}
 				if (!done) {
 					buffer_[bin] = new std::vector<Hit>();
 					buffer_[bin]->reserve(buffer_size);
 				}
+				else
+					buffer_[bin] = nullptr;
 			}
 			else {
+				if (text_buffer_[bin] == nullptr)
+					return;
 				if (text_buffer_[bin]->size() == 0) {
 					delete text_buffer_[bin];
+					text_buffer_[bin] = nullptr;
 					return;
 				}
 				text_buffer_[bin]->write((uint16_t)0);
-				parent_.out_queue_[bin]->enqueue(std::tuple<int, TextBuffer*, uint32_t>(bin, text_buffer_[bin], buf_count_[bin]));
+				if (!parent_.out_queue_[bin]->enqueue_or_abort(std::tuple<int, TextBuffer*, uint32_t>(bin, text_buffer_[bin], buf_count_[bin]))) {
+					delete text_buffer_[bin];
+					text_buffer_[bin] = nullptr;
+					if (!done)
+						throw std::runtime_error("Write error in HitBuffer");
+					return;
+				}
 				buf_count_[bin] = 0;
 				if(!done) text_buffer_[bin] = new TextBuffer();
+				else text_buffer_[bin] = nullptr;
 			}
 		}
-		virtual ~Writer()
+		virtual ~Writer() noexcept
 		{
 			for (int bin = 0; bin < parent_.bins(); ++bin) {
-				flush(bin, true);
+				try {
+					flush(bin, true);
+				}
+				catch (...) {}
 				parent_.count_[bin] += count_[bin];
 			}
 		}
@@ -222,6 +246,7 @@ private:
 
 	void load_bin(Hit* out, int bin);
 	void write_worker(const std::atomic<bool>& stop, int bin);
+	void abort() noexcept;
 
 	const std::vector<Key> key_partition_;
 	const bool long_subject_offsets_;
@@ -240,6 +265,7 @@ private:
 	int64_t data_size_next_, alloc_size_;
 	std::thread* load_worker_;
 	std::exception_ptr load_exception_;
+	std::atomic<bool> aborted_;
 	std::vector<std::thread::id> writer_;
 	std::vector<Queue<std::tuple<int, TextBuffer*, uint32_t>>*> out_queue_;
 	std::vector<Queue<std::pair<int, std::vector<Hit>*>>*> membuf_out_queue_;

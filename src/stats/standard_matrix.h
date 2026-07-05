@@ -24,13 +24,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <array>
 #include <vector>
 #include "basic/value.h"
-#include "blast/matrix_adjust.h"
 
 namespace Stats {
 
 const double INT2_MAX = DBL_MAX;
 const size_t NCBI_ALPH = 28;
-using FreqRatios = MatrixFloat[NCBI_ALPH][NCBI_ALPH];
+constexpr size_t PADDED_AA = 24;
+using FreqRatios = double[NCBI_ALPH][NCBI_ALPH];
 
 struct StandardMatrix {
 
@@ -51,9 +51,14 @@ struct StandardMatrix {
 	int default_gap_exist, default_gap_extend;
 	std::vector<Parameters> parameters;
 	std::array<int8_t, AMINO_ACID_COUNT * AMINO_ACID_COUNT> scores;
-	MatrixFloat joint_probs[TRUE_AA][TRUE_AA];
-	std::array<MatrixFloat, TRUE_AA> background_freqs;
+	double joint_probs[TRUE_AA][TRUE_AA];
+	std::array<double, TRUE_AA> background_freqs;
 	FreqRatios freq_ratios;
+
+	mutable std::array<float, TRUE_AA * PADDED_AA> joint_probs_f;
+	mutable std::array<float, PADDED_AA> background_freqs_f;
+
+	void init_float_views() const;
 
 	const Parameters& constants(int gap_exist, int gap_extend) const;
 	const Parameters& ungapped_constants() const;

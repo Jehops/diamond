@@ -81,14 +81,6 @@ static size_t single_oid(const SequenceFile* f, const string& acc) {
 	return oid.front();
 }
 
-void SequenceFile::init_write() {
-	throw OperationNotSupported();
-}
-
-void SequenceFile::write_seq(const Sequence& seq, const std::string& id) {
-	throw OperationNotSupported();
-}
-
 std::string SequenceFile::taxon_scientific_name(TaxId taxid) const {
 	throw OperationNotSupported();
 }
@@ -418,7 +410,7 @@ void SequenceFile::get_seq()
 	const size_t max_letters = config.chunk_size == 0.0 ? std::numeric_limits<size_t>::max() : (size_t)(config.chunk_size * 1e9);
 	size_t letters = 0;
 	TextBuffer buf;
-	OutputFile out(config.output_file);
+	File out(config.output_file, "wb");
 	for (uint64_t n = 0; n < sequence_count().value(); ++n) {
 		read_seq(seq, id);
 		std::map<string, string>::const_iterator mapped_title = seq_titles.find(Util::Seq::seqid(id.c_str()));

@@ -99,7 +99,7 @@ static TargetVec recompute_alt_hsps(const Sequence* query_seq, const int query_s
 	}
 
 	for (int32_t context = 0; context < align_mode.query_contexts; ++context) {
-		const int8_t* cbs = ::Stats::CBS::hauser(config.comp_based_stats) ? query_cb[context].int8.data() : nullptr;
+		const int8_t* cbs = ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[context].int8.data() : nullptr;
 		DP::Params params{ query_seq[context], "", Frame(context), query_source_len, cbs, DP::Flags::FULL_MATRIX, false, 0, -1,
 			v, stats, nullptr };
 		list<Hsp> hsp = DP::BandedSwipe::swipe(dp_targets[context], params);

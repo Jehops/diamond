@@ -39,7 +39,7 @@ vector<Target> full_db_align(const Sequence* query_seq, const HauserCorrection* 
 			"",
 			Frame(frame),
 			query_seq[frame].length(),
-			::Stats::CBS::hauser(config.comp_based_stats) ? query_cb[frame].int8.data() : nullptr,
+			::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
 			flags | DP::Flags::FULL_MATRIX,
 			false,
 			ref_seqs.max_len(0, ref_seqs.size()),

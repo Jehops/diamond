@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <assert.h>
 #include <type_traits>
 #include <new>
+#include <utility>
 #include "../parallel/semaphore.h"
 
 template <class T>
@@ -72,13 +73,19 @@ public:
     Queue(const Queue&) = delete;
     Queue& operator=(const Queue&) = delete;
 
-    void enqueue(const T& v) { emplace_impl(v); }
-    void enqueue(T&& v) { emplace_impl(std::move(v)); }
+    void enqueue(const T& v) { (void)emplace_impl(v); }
+    void enqueue(T&& v) { (void)emplace_impl(std::move(v)); }
+    bool enqueue_or_abort(const T& v) { return emplace_impl(v); }
+    bool enqueue_or_abort(T&& v) { return emplace_impl(std::move(v)); }
    
     bool wait_and_dequeue(T& out) {
         while (true) {
             items_.acquire();
+            if (aborted_.load(std::memory_order_acquire))
+                return false;
             while (!try_dequeue(out)) {
+                if (aborted_.load(std::memory_order_acquire))
+                    return false;
                 std::this_thread::yield();
             }
             spaces_.release();
@@ -111,8 +118,17 @@ public:
 
     // call once per producer
     void close() {
+        if (aborted_.load(std::memory_order_acquire))
+            return;
         for (int i = 0; i < consumer_count_; ++i) {
             enqueue(poison_pill_);
+        }
+    }
+
+    void abort() {
+        if (!aborted_.exchange(true, std::memory_order_acq_rel)) {
+            spaces_.release(producer_count_ + consumer_count_ + 1);
+            items_.release(consumer_count_ + 1);
         }
     }
 
@@ -156,10 +172,16 @@ private:
     size_t index(size_t pos) const noexcept { return pos & mask_; }
 
     template <class... Args>
-    void emplace_impl(Args&&... args) {        
+    bool emplace_impl(Args&&... args) {
+        if (aborted_.load(std::memory_order_acquire))
+            return false;
         spaces_.acquire();
+        if (aborted_.load(std::memory_order_acquire))
+            return false;
         size_t pos = enqueue_pos_.load(std::memory_order_relaxed);
         for (;;) {
+            if (aborted_.load(std::memory_order_acquire))
+                return false;
             Cell* cell = &buffer_[index(pos)];
             size_t seq = cell->seq.load(std::memory_order_acquire);
             intptr_t dif = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
@@ -169,7 +191,7 @@ private:
                     new (cell_value_ptr(cell)) T(std::forward<Args>(args)...);
                     cell->seq.store(pos + 1, std::memory_order_release);
                     items_.release();                    
-                    return;
+                    return true;
                 }
             }
             else {
@@ -220,5 +242,6 @@ private:
     CountingSemaphore<> items_{ (ptrdiff_t)0 };
     CountingSemaphore<> spaces_{ (ptrdiff_t)capacity_ };
     std::atomic<size_t> pills_received_;
+    std::atomic<bool> aborted_{ false };
 
 };

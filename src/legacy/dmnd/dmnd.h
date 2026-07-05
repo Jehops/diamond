@@ -40,7 +40,7 @@ struct ReferenceHeader
 	static const uint32_t current_db_version_prot;
 	static const uint32_t current_db_version_nucl;
 	static constexpr uint64_t MAGIC_NUMBER = 0x24af8a415ee186dllu;
-	friend File& operator>>(File& file, ReferenceHeader& h);
+	friend void deserialize(File& file, ReferenceHeader& h);
 };
 
 struct ReferenceHeader2
@@ -62,8 +62,8 @@ struct ReferenceHeader2
     SequenceType db_type;
 #endif
 
-	friend File& operator<<(File &s, const ReferenceHeader2 &h);
-	friend File& operator>>(File &d, ReferenceHeader2 &h);
+	friend void serialize(File &s, const ReferenceHeader2 &h);
+	friend void deserialize(File &d, ReferenceHeader2 &h);
 };
 
 struct DatabaseFormatException : public std::exception
@@ -146,8 +146,6 @@ struct DatabaseFile : public SequenceFile
 	virtual void seq_data(size_t oid, std::vector<Letter>& dst) override;
 	virtual Loc seq_length(size_t oid) override;
 	virtual void end_random_access(bool dictionary = true) override;
-	virtual void init_write() override;
-	virtual void write_seq(const Sequence& seq, const std::string& id) override;
 	virtual void print_info() const override;
 
 	static const char* FILE_EXTENSION;

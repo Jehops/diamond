@@ -57,6 +57,29 @@ const map<string, const StandardMatrix&> StandardMatrix::matrices = { { "blosum4
 	{ "blosum50", blosum50 }, { "blosum80", blosum80 }, { "blosum90", blosum90 },
 	{ "pam250", pam250 }, { "pam30", pam30 }, { "pam70", pam70 } };
 
+void StandardMatrix::init_float_views() const {
+	int i = 0;
+	for (; i < TRUE_AA; ++i) {
+		background_freqs_f[i] = (float)background_freqs[i];
+		int j = 0;
+		for (; j < TRUE_AA; ++j)
+			joint_probs_f[i * PADDED_AA + j] = (float)joint_probs[i][j];
+		for (; j < PADDED_AA; ++j)
+			joint_probs_f[i * PADDED_AA + j] = 1.0f;
+	}
+	for (; i < PADDED_AA; ++i)
+		background_freqs_f[i] = 1.0f;
+}
+
+// Populate the float views of every registered matrix once at static-init time.
+// Runs after the matrix globals and the matrices map are constructed (same TU,
+// declared above), and before main()/threads start, so no locking is needed.
+static const bool standard_matrix_float_views_initialized = [] {
+	for (const auto& m : StandardMatrix::matrices)
+		m.second.init_float_views();
+	return true;
+}();
+
 const StandardMatrix& StandardMatrix::get(const string& name) {
 	string n;
 	std::transform(name.begin(), name.end(), std::back_inserter(n), [](unsigned char c) { return tolower(c); });

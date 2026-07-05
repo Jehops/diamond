@@ -80,7 +80,7 @@ pair<FlatArray<SeedHit>, vector<uint32_t>> gapped_filter(const Sequence* query, 
 	vector<LongScoreProfile<int8_t>> query_profile;
 	query_profile.reserve(align_mode.query_contexts);
 	for (int i = 0; i < align_mode.query_contexts; ++i)
-		query_profile.push_back(DP::make_profile8(query[i], ::Stats::CBS::hauser(config.comp_based_stats) ? query_cbs[i].int8.data() : nullptr, 0));
+		query_profile.push_back(DP::make_profile8(query[i], ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cbs[i].int8.data() : nullptr, 0));
 	
 	if(flag_any(flags, DP::Flags::PARALLEL)) {
 		mutex mtx;

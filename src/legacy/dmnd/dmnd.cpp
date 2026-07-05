@@ -47,38 +47,27 @@ const char* DatabaseFile::FILE_EXTENSION = ".dmnd";
 const uint32_t ReferenceHeader::current_db_version_prot = 3;
 const uint32_t ReferenceHeader::current_db_version_nucl = 4;
 
-Serializer& operator<<(Serializer &s, const ReferenceHeader2 &h)
+void serialize(File &s, const ReferenceHeader2 &h)
 {
-	s << sizeof(ReferenceHeader2);
+	s.write(big_endian_byteswap(sizeof(ReferenceHeader2)));
 	s.write(h.hash, sizeof(h.hash));
-	s << h.taxon_array_offset << h.taxon_array_size << h.taxon_nodes_offset << h.taxon_names_offset;
-#ifdef EXTRA
-	s << (int32_t)h.db_type;
-#endif
-	return s;
+	s.write(big_endian_byteswap(h.taxon_array_offset));
+	s.write(big_endian_byteswap(h.taxon_array_size));
+	s.write(big_endian_byteswap(h.taxon_nodes_offset));
+	s.write(big_endian_byteswap(h.taxon_names_offset));
 }
 
-File& operator>>(File &d, ReferenceHeader2 &h)
+void deserialize(File &d, ReferenceHeader2 &h)
 {
-#ifdef EXTRA
-	int32_t db_type;
-#endif
 	DynamicRecordReader(d).read(h.hash, sizeof(h.hash))
 		>> h.taxon_array_offset
 		>> h.taxon_array_size
 		>> h.taxon_nodes_offset
 		>> h.taxon_names_offset
-#ifdef EXTRA
-		>> db_type
-#endif
 		>> Finish();
-#ifdef EXTRA
-	h.db_type = (SequenceType)db_type;
-#endif
-	return d;
 }
 
-File& operator>>(File& file, ReferenceHeader& h)
+void deserialize(File& file, ReferenceHeader& h)
 {
 	file.read(h.magic_number);
 	h.magic_number = big_endian_byteswap(h.magic_number);
@@ -92,13 +81,16 @@ File& operator>>(File& file, ReferenceHeader& h)
 	h.letters = big_endian_byteswap(h.letters);
 	file.read(h.pos_array_offset);
 	h.pos_array_offset = big_endian_byteswap(h.pos_array_offset);
-	return file;
 }
 
-Serializer& operator<<(Serializer& file, const ReferenceHeader& h)
+void serialize(File& file, const ReferenceHeader& h)
 {
-	file << h.magic_number << h.build << h.db_version << h.sequences << h.letters << h.pos_array_offset;
-	return file;
+	file.write(big_endian_byteswap(h.magic_number));
+	file.write(big_endian_byteswap(h.build));
+	file.write(big_endian_byteswap(h.db_version));
+	file.write(big_endian_byteswap(h.sequences));
+	file.write(big_endian_byteswap(h.letters));
+	file.write(big_endian_byteswap(h.pos_array_offset));
 }
 
 File& operator>>(File& file, SequenceFile::SeqInfo& r) {
@@ -111,9 +103,10 @@ File& operator>>(File& file, SequenceFile::SeqInfo& r) {
 	return file;
 }
 
-Serializer& operator<<(Serializer& file, const SequenceFile::SeqInfo& r) {
-	file << r.pos << r.seq_len << (uint32_t)0;
-	return file;
+void serialize(File& file, const SequenceFile::SeqInfo& r) {
+	file.write(big_endian_byteswap(r.pos));
+	file.write(big_endian_byteswap(r.seq_len));
+	file.write((uint32_t)0);
 }
 
 SequenceFile::SeqInfo DatabaseFile::read_seqinfo() {
@@ -138,7 +131,7 @@ void DatabaseFile::init(Flags flags)
 		throw runtime_error("Database was built with a newer version of Diamond and is incompatible.");
 	if (ref_header.sequences == 0)
 		throw runtime_error("Incomplete database file. Database building did not complete successfully.");
-	file_ >> header2;
+	deserialize(file_, header2);
 	pos_array_offset = ref_header.pos_array_offset;
 }
 
@@ -202,7 +195,7 @@ void DatabaseFile::close() {
 
 void DatabaseFile::read_header(File &stream, ReferenceHeader &header)
 {
-	stream >> header;
+	deserialize(stream, header);
 	if (header.magic_number != ReferenceHeader().magic_number)
 		throw DatabaseFormatException();
 }
@@ -221,7 +214,7 @@ bool DatabaseFile::has_taxon_scientific_names() const {
 	return header2.taxon_names_offset != 0;
 }
 
-static void push_seq(const Sequence &seq, const char *id, size_t id_len, uint64_t &offset, vector<SequenceFile::SeqInfo> &pos_array, OutputFile &out, size_t &letters, size_t &n_seqs)
+static void push_seq(const Sequence &seq, const char *id, size_t id_len, uint64_t &offset, vector<SequenceFile::SeqInfo> &pos_array, File &out, size_t &letters, size_t &n_seqs)
 {
 	pos_array.emplace_back(offset, seq.length());
 	out.write("\xff", 1);
@@ -250,12 +243,12 @@ void DatabaseFile::make_db()
 	value_traits = (config.dbtype == SequenceType::amino_acid) ? amino_acid_traits : nucleotide_traits;
     FastaFile db_file({ input_file_name }, Flags::NONE, value_traits);
 
-    unique_ptr<OutputFile> out(new OutputFile(config.database));
+    unique_ptr<File> out(new File(config.database, "wb"));
 	ReferenceHeader header;
     ReferenceHeader2 header2;
 
-    *out << header;
-	*out << header2;
+	serialize(*out, header);
+	serialize(*out, header2);
 
 	size_t letters = 0, n = 0, n_seqs = 0, total_seqs = 0;
 	uint64_t offset = out->tell();
@@ -312,7 +305,7 @@ void DatabaseFile::make_db()
 	}
 	catch (std::exception&) {
 		out->close();
-		out->remove();
+		remove(out->name().c_str());
 		throw;
 	}
 
@@ -322,7 +315,7 @@ void DatabaseFile::make_db()
 	header.pos_array_offset = offset;
 	pos_array.emplace_back(offset, 0);
 	for (const SeqInfo& r : pos_array)
-		*out << r;
+		serialize(*out, r);
 	pos_array.clear();
 	pos_array.shrink_to_fit();
 	timer.finish();
@@ -361,8 +354,8 @@ void DatabaseFile::make_db()
 	header.letters = letters;
 	header.sequences = n_seqs;
 	out->seek(0);
-	*out << header;
-	*out << header2;
+	serialize(*out, header);
+	serialize(*out, header2);
 	out->close();
 
 	timer.finish();
@@ -608,14 +601,6 @@ void DatabaseFile::end_random_access(bool dictionary)
 	if (!dictionary)
 		return;
 	free_dictionary();
-}
-
-void DatabaseFile::init_write() {
-	throw OperationNotSupported();
-}
-
-void DatabaseFile::write_seq(const Sequence& seq, const std::string& id) {
-	throw OperationNotSupported();
 }
 
 string DatabaseFile::taxon_scientific_name(TaxId taxid) const {

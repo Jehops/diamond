@@ -191,7 +191,7 @@ ScoreMatrix::ScoreMatrix(const string& matrix_file, int gap_open, int gap_extend
 }
 
 template<typename T>
-Scores<T>::Scores(const MatrixFloat (&freq_ratios)[Stats::NCBI_ALPH][Stats::NCBI_ALPH], double lambda, const int8_t* scores, int scale) {
+Scores<T>::Scores(const double(&freq_ratios)[Stats::NCBI_ALPH][Stats::NCBI_ALPH], double lambda, const int8_t* scores, int scale) {
 	const size_t n = value_traits.alphabet_size;
 	for (size_t i = 0; i < 32; ++i)
 		for (size_t j = 0; j < 32; ++j) {
@@ -216,7 +216,10 @@ template struct Scores<int>;
 
 double ScoreMatrix::evalue(int raw_score, unsigned query_len, unsigned subject_len) const
 {
-	return evaluer.evalue((double)raw_score / scale_, query_len, subject_len) * (double)db_letters_ / (double)subject_len;
+	const double e = evaluer.evalue((double)raw_score / scale_, query_len, subject_len);
+	if (config.symmetrize_evalue && query_len < subject_len)
+		return  e * (double)db_letters_ / (double)query_len;
+	return e * (double)db_letters_ / (double)subject_len;
 }
 
 double ScoreMatrix::evalue_norm(int raw_score, unsigned query_len, unsigned subject_len) const

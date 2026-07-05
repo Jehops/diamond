@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
-#include "util/io/output_file.h"
 #include "util/io/file.h"
 #include "legacy/dmnd/compact_array.h"
 #include "util/table.h"
@@ -31,5 +30,5 @@ struct TaxonList : public CompactArray
 {
 	typedef std::pair<std::string, OId> T;
 	TaxonList(File &in, size_t size, size_t data_size);
-	static void build(OutputFile &db, ExternalSorter<T, std::less<T>>& accessions, OId seqs, Util::Table& stats);
+	static void build(File &db, ExternalSorter<T, std::less<T>>& accessions, OId seqs, Util::Table& stats);
 };

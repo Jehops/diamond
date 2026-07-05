@@ -92,6 +92,8 @@ struct File {
 	void read_text_mt(int64_t max_size, int threads, std::function<void(int64_t chunk, const char*, const char*)>& callback);
 	size_t line_count = 0;
 
+	static std::string tmp_dir();
+
 private:
 
 	FILE* file_ = nullptr;

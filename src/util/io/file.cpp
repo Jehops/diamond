@@ -24,14 +24,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 #include <string.h> // strerror
 #include "file.h"
-#include "temp_file.h"
 #include "util/data_structures/mem_buffer.h"
 #include "util/system/system.h"
 #include "util/enum.h"
 #include "basic/config.h"
+#ifdef _MSC_VER
+#define NOMINMAX
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+#define STATUS_UNSUCCESSFUL ((NTSTATUS)0xC0000001L)
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <bcrypt.h>
+#endif
 
 using std::string;
 using std::runtime_error;
+using std::vector;
 
 static CompressionLib detect_compressor(const char* b) {
 	if ((b[0] == '\x1F' && b[1] == '\x8B')         // gzip header
@@ -44,13 +52,63 @@ static CompressionLib detect_compressor(const char* b) {
 	return CompressionLib::NONE;
 }
 
+struct TempFileData {
+	std::string name;
+	int fd;
+	bool unlinked;
+};
+
+static TempFileData open_tmp_file(bool unlink)
+{
+	static unsigned n;
+	static uint64_t hash_key;
+	TempFileData r;
+	vector<char> buf(config.tmpdir.length() + 64);
+	char* s = buf.data();
+	const string prefix = File::tmp_dir();
+
+#ifdef _MSC_VER
+	if (n == 0) {
+		LARGE_INTEGER count;
+		QueryPerformanceCounter(&count);
+		hash_key = (uint64_t)(count.HighPart + count.LowPart + count.QuadPart + GetCurrentProcessId());
+	}
+	snprintf(s, buf.size() - 1, "%sdiamond-%llx-%u.tmp", prefix.c_str(), hash_key, n++);
+#else
+	snprintf(s, buf.size() - 1, "%sdiamond-tmp-XXXXXX", prefix.c_str());
+#endif
+
+#ifdef _MSC_VER
+	r.unlinked = false;
+	r.name = s;
+	return r;
+#else
+	int fd = mkstemp(s);
+	if (fd < 0) {
+		perror(0);
+		throw std::runtime_error(string("Error opening temporary file ") + string(s));
+	}
+	if (config.no_unlink || !unlink)
+		r.unlinked = false;
+	else
+		r.unlinked = (::unlink(s) >= 0);
+	r.name = s;
+	r.fd = fd;
+	return r;
+#endif
+}
+
+string File::tmp_dir() {
+	return config.tmpdir != "" ? config.tmpdir + PATH_SEPARATOR : "";
+}
+
 File::File(Temporary):
 	line_buf_((char*)malloc(1024)),
 	line_buf_size_(1024),
 	decompressor_(new PassThrough),
 	compressor_(new PassThroughCompressor)
 {	
-	TempFileData d = TempFile::init(true);
+	TempFileData d = open_tmp_file(true);
 #ifdef _MSC_VER
 	file_ = fopen(d.name.c_str(), "w+b");
 #else
@@ -72,7 +130,7 @@ File::File(const string& name, const char* mode, Flags flags, CompressionLib com
 	decompressor_(new PassThrough),
 	compressor_(new PassThroughCompressor)
 {
-	if (name.empty()) {
+	if (name.empty() || name == "-") {
 		if (flag_any(flags, Flags::TREAT_BLANK_AS_STDIN)) {
 			file_ = stdin;
 #ifdef _WIN32
@@ -202,13 +260,11 @@ void File::seek(int64_t p, int origin)
 		throw runtime_error("Seeking is not supported for compressed files.");
 #ifdef WIN32
 	if (_fseeki64(file_, p, origin) != 0) {
-		perror(0);
-		throw std::runtime_error("Error calling fseek.");
+		throw std::runtime_error("Error calling fseek: " + std::string(strerror(errno)));
 	}
 #else
 	if (fseek(file_, p, origin) != 0) {
-		perror(0);
-		throw std::runtime_error("Error calling fseek.");
+		throw std::runtime_error("Error calling fseek: " + std::string(strerror(errno)));
 	}
 #endif
 }

@@ -17,32 +17,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ****/
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#pragma once
-#include "stream_entity.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include "util/simd/dispatch.h"
+#include "../stats.h"
 
-struct FileSource : public StreamEntity
-{
-	FileSource(const std::string &file_name);
-	FileSource(const std::string &file_name, FILE *file);
-	virtual void rewind() override;
-	virtual void seek(int64_t p, int origin) override;
-	virtual int64_t tell() override;
-	virtual size_t read(char *ptr, size_t count) override;
-	virtual void close() override;
-	virtual int64_t file_size() override;
-	virtual bool eof() override;
-	virtual const std::string& file_name() const override
-	{
-		return file_name_;
-	}
-	virtual FILE* file() override
-	{
-		return f_;
-	}
-	//void putback(char c);
-	~FileSource()
-	{}
-protected:
-	FILE *f_;
-	const std::string file_name_;
-};
+#ifdef __AVX2__
+#include "kernel_avx2.h"
+#elif defined(__SSSE3__) && defined(__POPCNT__) && defined(__SSE4_1__)
+#include "kernel_sse41.h"
+#elif defined(__aarch64__) && defined(__ARM_NEON)
+#include "kernel_arm64.h"
+#else
+namespace Stats { namespace ARCH_GENERIC {
+bool matrix_adjust(const float* q, const float* P, const float* Q, float* x, float target_re) {
+	return Stats::matrix_adjust_scalar(q, P, Q, x, target_re);
+}
+}}
+#endif
+
+namespace Stats {
+
+DISPATCH_5(bool, matrix_adjust, const float*, q, const float*, P, const float*, Q, float*, x, float, target_re)
+
+}

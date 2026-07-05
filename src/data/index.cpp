@@ -43,7 +43,7 @@ void makeindex() {
 	HashedSeedSet index(*block, nullptr, 0.0, Search::soft_masking_algo(Search::sensitivity_traits.at(config.sensitivity)));
 
 	timer.go("Writing to disk");
-	OutputFile out(db.file_name() + ".seed_idx");
+	File out(db.file_name() + ".seed_idx", "wb");
 	out.write(SEED_INDEX_MAGIC_NUMBER);
 	out.write(SEED_INDEX_VERSION);
 	out.write((uint32_t)shapes.count());

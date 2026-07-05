@@ -29,7 +29,7 @@ std::mutex query_aligned_mtx;
 unique_ptr<HashedSeedSet> query_seeds_hashed;
 unique_ptr<SeedSet> query_seeds_bitset;
 
-void write_unaligned(const Block& query, OutputFile *file)
+void write_unaligned(const Block& query, File *file)
 {
 	const size_t n = query.ids().size();
 	TextBuffer buf;
@@ -47,7 +47,7 @@ void write_unaligned(const Block& query, OutputFile *file)
 	}
 }
 
-void write_aligned(const Block& query, OutputFile *file)
+void write_aligned(const Block& query, File *file)
 {
 	const size_t n = query.ids().size();
 	TextBuffer buf;

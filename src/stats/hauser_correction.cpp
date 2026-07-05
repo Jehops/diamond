@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "hauser_correction.h"
 #include "score_matrix.h"
 #include "basic/config.h"
-#include "cbs.h"
 
 using std::array;
 using std::vector;
@@ -139,33 +138,4 @@ vector<int8_t> HauserCorrection::reverse(const int8_t* p, const size_t len) {
 	r.reserve(len);
 	std::reverse_copy(p, p + len, std::back_inserter(r));
 	return r;
-}
-
-namespace Stats {
-
-vector<int> hauser_global(const Composition& query_comp, const Composition& target_comp) {
-	const std::array<double, TRUE_AA>& background_scores = score_matrix.background_scores();
-	array<double, TRUE_AA> qscores, tscores;
-	qscores.fill(0.0);
-	tscores.fill(0.0);
-	for (size_t i = 0; i < TRUE_AA; ++i)
-		for (size_t j = 0; j < TRUE_AA; ++j) {
-			qscores[i] += query_comp[j] * (double)score_matrix(i, j);
-			tscores[i] += target_comp[j] * (double)score_matrix(i, j);
-		}
-
-	for (size_t i = 0; i < TRUE_AA; ++i) {
-		qscores[i] = (background_scores[i] - qscores[i]);
-		tscores[i] = (background_scores[i] - tscores[i]);
-	}
-
-	vector<int> m(AMINO_ACID_COUNT * AMINO_ACID_COUNT);
-	for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
-		for (size_t j = 0; j < AMINO_ACID_COUNT; ++j) {
-			double s = (double)score_matrix(i, j), q = i < TRUE_AA ? qscores[i] : 0.0, t = j < TRUE_AA ? tscores[j] : 0.0;
-			m[i * AMINO_ACID_COUNT + j] = (int)std::round(s + std::min(q, t));
-		}
-	return m;
-}
-
 }

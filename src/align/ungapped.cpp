@@ -48,8 +48,8 @@ WorkTarget::WorkTarget(BlockId block_id, const Sequence& seq, Sequence query, Lo
 {
 	ungapped_score.fill(0);
 	Stats::EMatrixAdjustRule rule;
-	if (!config.anchored_swipe && (rule = ::Stats::adjust_matrix(query_comp, query_len_true_aa, config.comp_based_stats, seq)) != Stats::eDontAdjustMatrix) {
-		matrix.reset(new ::Stats::TargetMatrix(query_comp, query_len_true_aa, config.comp_based_stats, seq, stats, pool, rule));
+	if (!config.anchored_swipe && (rule = ::Stats::adjust_matrix(query_comp, query_len_true_aa, config.comp_based_stats_.get(Stats::DEFAULT_CBS), seq)) != Stats::eDontAdjustMatrix) {
+		matrix.reset(new ::Stats::TargetMatrix(query_comp, query_len_true_aa, config.comp_based_stats_.get(Stats::DEFAULT_CBS), seq, stats, pool, rule));
 		/*if (config.anchored_swipe) {
 			TaskTimer timer;
 			profile = DP::make_profile16(query, *matrix, query.length() + max_target_len + 32);
@@ -79,7 +79,7 @@ WorkTarget ungapped_stage(FlatArray<SeedHit>::DataIterator begin, FlatArray<Seed
 		return target;
 	}
 	std::sort(begin, end);
-	const bool use_hauser = ::Stats::CBS::hauser(config.comp_based_stats);
+	const bool use_hauser = ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS));
 	for (FlatArray<SeedHit>::DataIterator hit = begin; hit < end; ++hit) {
 		const auto f = hit->frame;
 		target.ungapped_score[f] = std::max(target.ungapped_score[f], hit->score);

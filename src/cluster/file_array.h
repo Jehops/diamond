@@ -42,7 +42,7 @@ struct FileArray {
 		for (int64_t i = 0; i < size; ++i) {
 			const std::string dir = base_dir + PATH_SEPARATOR + std::to_string(i) + PATH_SEPARATOR;
 			mkdir(dir);
-			output_files_.push_back(new OutputFile(dir + "worker_" + std::to_string(worker_id) + "_volume_0"));
+			output_files_.push_back(new File(dir + "worker_" + std::to_string(worker_id) + "_volume_0", "wb"));
 			bucket_files_.emplace_back(new FileStack(dir + "bucket.tsv"));
 		}
 	}
@@ -53,9 +53,9 @@ struct FileArray {
 		for (uint64_t i = 0; i < size_; ++i) {
 			output_files_[i]->close();
 			if (records_[i] > 0)
-				bucket_files_[i]->push(output_files_[i]->file_name() + '\t' + std::to_string(records_[i]));
+				bucket_files_[i]->push(output_files_[i]->name() + '\t' + std::to_string(records_[i]));
 			else
-				::remove(output_files_[i]->file_name().c_str());
+				::remove(output_files_[i]->name().c_str());
 			delete output_files_[i];
 		}
 		output_files_.clear();
@@ -73,12 +73,12 @@ struct FileArray {
 			records_total_[i] += records;
 		bytes_[i] += count;
 		if (bytes_[i] >= max_file_size) {
-			bucket_files_[i]->push(output_files_[i]->file_name() + '\t' + std::to_string(records_[i]));
+			bucket_files_[i]->push(output_files_[i]->name() + '\t' + std::to_string(records_[i]));
 			records_[i] = 0;
 			bytes_[i] = 0;
 			output_files_[i]->close();
 			delete output_files_[i];
-			output_files_[i] = new OutputFile(base_dir + PATH_SEPARATOR + std::to_string(i) + PATH_SEPARATOR + "worker_" + std::to_string(worker_id_) + "_volume_" + std::to_string(next_[i]++));
+			output_files_[i] = new File(base_dir + PATH_SEPARATOR + std::to_string(i) + PATH_SEPARATOR + "worker_" + std::to_string(worker_id_) + "_volume_" + std::to_string(next_[i]++), "wb");
 			return true;
 		}
 		return false;
@@ -112,7 +112,7 @@ struct FileArray {
 	}
 
 	std::string file_name(int i) {
-		return output_files_[i]->file_name();
+		return output_files_[i]->name();
 	}
 
 	uint64_t records_total() const {
@@ -131,7 +131,7 @@ private:
 	const uint64_t size_;
 	const int64_t worker_id_;
 	const std::string base_dir;
-	std::vector<OutputFile*> output_files_;
+	std::vector<File*> output_files_;
 	std::vector<std::mutex> mtx_;
 	std::vector<int64_t> records_, records_total_, bytes_, next_;
 	std::vector<std::unique_ptr<FileStack>> bucket_files_;

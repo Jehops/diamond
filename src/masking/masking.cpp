@@ -1,19 +1,21 @@
 /****
-Copyright © 2012-2026 Benjamin J. Buchfink <buchfink@gmail.com>
+DIAMOND protein sequence aligner
+Copyright (C) 2012-2026 Benjamin J. Buchfink
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-	http://www.apache.org/licenses/LICENSE-2.0
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ****/
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <atomic>
 #include <numeric>
@@ -44,7 +46,8 @@ const SEMap<MaskingMode> EnumTraits<MaskingMode>::from_string{
 	{"none", MaskingMode::NONE},
 	{"1", {MaskingMode::TANTAN, false}},
 	{"tantan", MaskingMode::TANTAN},
-	{"seg", MaskingMode::BLAST_SEG}
+	{"seg", MaskingMode::BLAST_SEG},
+	{"seg-all", MaskingMode::BLAST_SEG_ALL }
 };
 
 unique_ptr<Masking> Masking::instance;
@@ -163,11 +166,11 @@ MaskingStat Masking::operator()(Letter *seq, size_t len, MaskingAlgo algo, const
 	MaskingStat stats;
 	if (flag_any(algo, MaskingAlgo::TANTAN)) {
 		Mask::Ranges r = Util::tantan::mask(seq, (int)len, (const float**)probMatrixPointersf_, 0.005f, 0.05f, 1.0f / 0.9f, (float)config.tantan_minMaskProb, table ? 0 : 1);
-		if (table)
-			for (auto i : r) {
+		for (auto i : r) {
+			if (table)
 				table->add(block_id, i.first, i.second, seq);
-				stats.add(MaskingAlgo::TANTAN, i.second - i.first);
-			}
+			stats.add(MaskingAlgo::TANTAN, i.second - i.first);
+		}
 	}
 	if (flag_any(algo, MaskingAlgo::SEG)) {
 		BlastSeqLoc* seg_locs;
@@ -190,6 +193,8 @@ MaskingStat Masking::operator()(Letter *seq, size_t len, MaskingAlgo algo, const
 			} while ((l = l->next) != 0);
 			BlastSeqLocFree(seg_locs);
 		}
+		if (!table)
+			stats.add(MaskingAlgo::SEG, nMasked);
 	}
 	if (flag_any(algo, MaskingAlgo::MOTIF))
 		stats.add(MaskingAlgo::MOTIF, mask_motifs(seq, len, block_id, *table));

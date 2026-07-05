@@ -122,15 +122,20 @@ Config::Config(std::unique_ptr<std::vector<BitVector>>& target_seed_hits) :
 		throw runtime_error("--target-indexed requires --algo 0");
 
     if(config.command != ::Config::blastn) {
-        const MaskingMode masking_mode = from_string<MaskingMode>(config.masking_.get("tantan"));
+        const MaskingMode masking_mode = config.masking_.present() ? from_string<MaskingMode>(config.masking_.get_present()) : Stats::CBS::masking_mode(config.comp_based_stats_.get(Stats::DEFAULT_CBS));
         switch (masking_mode) {
             case MaskingMode::BLAST_SEG:
                 query_masking = MaskingAlgo::NONE;
                 target_masking = MaskingAlgo::SEG;
                 break;
+			case MaskingMode::BLAST_SEG_ALL:
+				query_masking = MaskingAlgo::SEG;
+				target_masking = MaskingAlgo::SEG;
+				break;
             case MaskingMode::TANTAN:
                 query_masking = MaskingAlgo::TANTAN;
                 target_masking = MaskingAlgo::TANTAN;
+				break;
             default:;
         }
     }

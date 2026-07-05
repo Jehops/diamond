@@ -20,13 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <inttypes.h>
 #include <fstream>
 #include <unordered_map>
-#include "multinode.h"
-#include "volume.h"
+#include "../multinode.h"
+#include "../volume.h"
 #include "basic/config.h"
 #include "util/memory/memory_resource.h"
 #include "util/io/compressed_buffer.h"
-#include "file_array.h"
-#include "input_buffer.h"
+#include "../file_array.h"
+#include "../input_buffer.h"
 #include "../cluster.h"
 
 using std::endl;
@@ -97,7 +97,7 @@ struct AccMapping {
 	}
 };
 
-static std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, const Volume& vol, size_t v, std::pmr::memory_resource& pool, bool remove) {
+std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, const Volume& vol, size_t v, std::pmr::memory_resource& pool, bool remove) {
 	std::pmr::unordered_map<OId, std::pmr::string> oid2acc(&pool);
 	oid2acc.reserve(vol.record_count);
 	const string path = job.root_dir() + "input" + std::to_string(v) + ".tsv";
@@ -114,7 +114,7 @@ static std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& jo
 			throw runtime_error("Duplicate OID in accessions file: " + path);
 	}
 	in.close();
-	if (oid2acc.size() != vol.record_count)
+	if (oid2acc.size() < vol.record_count)
 		throw runtime_error("Accessions file does not contain all OIDs");
 	if(remove)
 		remove_tmp_file(path);
@@ -182,8 +182,9 @@ static OId output_round2(Job& job, const vector<OId>& merged, const VolumedFile&
 	return cluster_count;
 }
 
-void merge(Job& job, const VolumedFile& volumes, Header hdr_format, const vector<OId>& merged) {
+void merge(Job& job, const VolumedFile& volumes, Header hdr_format) {
 	job.log("Merging clusterings");
+	const vector<OId> merged = build_merged(job);
 	OId n;
 	if (config.oid_output)
 		n = output_oids(job, merged);

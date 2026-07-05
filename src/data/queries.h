@@ -21,14 +21,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <mutex>
 #include <memory>
 #include <vector>
-#include "util/io/output_file.h"
 #include "block/block.h"
 
 extern std::mutex query_aligned_mtx;
 extern std::vector<bool> query_aligned;
 
-void write_unaligned(const Block& query, OutputFile *file);
-void write_aligned(const Block& query, OutputFile *file);
+void write_unaligned(const Block& query, File *file);
+void write_aligned(const Block& query, File *file);
 
 struct HashedSeedSet;
 struct SeedSet;

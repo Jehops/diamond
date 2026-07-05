@@ -193,6 +193,8 @@ set(DISPATCH_OBJECTS
         "src/dp/ungapped_simd.cpp"
         "src/dp/swipe/anchored_wrapper.cpp"
         "src/dp/score_profile.cpp"
+        "src/stats/matrix_adjust/matrix_adjust.cpp"
+        "src/stats/matrix_adjust/matrix_adjust_scalar.cpp"
         )
 
 if(EXTRA)
@@ -237,7 +239,7 @@ if(X86)
     endif()
   else()
     target_compile_options(arch_sse4_1 PUBLIC -DDISPATCH_ARCH=ARCH_SSE4_1 -DARCH_ID=1 -mssse3 -mpopcnt -msse4.1)
-    target_compile_options(arch_avx2 PUBLIC -DDISPATCH_ARCH=ARCH_AVX2 -DARCH_ID=2 -mssse3 -mpopcnt -msse4.1 -msse4.2 -mavx -mavx2)
+    target_compile_options(arch_avx2 PUBLIC -DDISPATCH_ARCH=ARCH_AVX2 -DARCH_ID=2 -mssse3 -mpopcnt -msse4.1 -msse4.2 -mavx -mavx2 -mfma)
     if(WITH_AVX512)
       target_compile_options(arch_avx512 PUBLIC -DDISPATCH_ARCH=ARCH_AVX512 -DARCH_ID=3 -mssse3 -mpopcnt -msse4.1 -msse4.2 -mavx -mavx2 -mavx512f -mavx512bw)
     endif()
@@ -319,26 +321,16 @@ set(OBJECTS
         src/output/output_sink.cpp
         src/output/target_culling.cpp
         src/align/legacy/banded_swipe_pipeline.cpp
-        src/util/io/compressed_stream.cpp
         src/util/io/compressed_buffer.cpp
-        src/util/io/deserializer.cpp
-        src/util/io/file_sink.cpp
-        src/util/io/file_source.cpp
-        src/util/io/input_file.cpp
-        src/util/io/input_stream_buffer.cpp
-        src/util/io/output_file.cpp
-        src/util/io/output_stream_buffer.cpp
-        src/util/io/serializer.cpp
-        src/util/io/temp_file.cpp
         src/util/io/file.cpp
         src/data/taxon_list.cpp
         src/data/taxonomy_nodes.cpp
         src/lib/murmurhash/MurmurHash3.cpp
         src/output/paf_format.cpp
         src/util/system/system.cpp
-        src/util/algo/greedy_vertex_cover.cpp
         src/util/sequence/sequence.cpp
         src/tools/tools.cpp
+        src/tools/composition_matrix.cpp
         src/util/system/getRSS.cpp
         src/lib/tantan/LambdaCalculator.cc
         src/util/string/string.cpp
@@ -380,7 +372,7 @@ set(OBJECTS
         src/stats/cbs.cpp
         src/stats/comp_based_stats.cpp
         src/stats/hauser_correction.cpp
-        src/stats/matrix_adjust.cpp
+        src/stats/matrix_adjust/matrix_adjust_wrapper.cpp
         src/data/index.cpp
         src/legacy/dmnd/dmnd.cpp
         src/data/sequence_file.cpp
@@ -395,7 +387,7 @@ set(OBJECTS
         src/masking/motifs.cpp
         src/align/alt_hsp.cpp
         src/data/fasta/fasta_file.cpp
-        src/cluster/output.cpp
+        src/cluster/multinode/output.cpp
         src/cluster/realign.cpp
         src/cluster/reassign.cpp
         src/util/io/read_text_mt.cpp
@@ -408,13 +400,11 @@ set(OBJECTS
         src/lib/blast/blast_stat.cpp
         src/lib/blast/blastn_score.cpp
         src/lib/blast/ncbi_std.cpp
-        src/cluster/cascaded/helpers.cpp
         src/legacy/daa/merge.cpp
         src/chaining/backtrace.cpp
         src/dp/scalar/smith_waterman.cpp
         #src/util/algo/mcl.cpp
-        #src/stats/blast/matrix_adjust.cpp
-        src/stats/blast/ncbi.cpp
+        src/stats/matrix_adjust/ncbi.cpp
         src/search/hit_buffer.cpp
         src/data/blastdb/phr.cpp
         src/data/blastdb/psq.cpp
@@ -424,12 +414,11 @@ set(OBJECTS
         src/data/blastdb/blastdb.cpp
         src/test/queue.cpp
         src/test/hit_buffer_stress.cpp
-        src/cluster/multinode/multinode.cpp
-        src/cluster/multinode/data.cpp
-        src/cluster/multinode/output.cpp
-        src/cluster/multinode/len_sort.cpp
-        src/cluster/multinode/merge.cpp
-        src/cluster/multinode/search.cpp
+        src/cluster/multinode.cpp
+        src/cluster/data.cpp
+        src/cluster/len_sort.cpp
+        src/cluster/merge.cpp
+        src/cluster/search.cpp
         src/util/io/zlib_bridge.cpp
 )
 
@@ -460,7 +449,7 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 
 if(WITH_ZSTD)
-  set(ZSTD_OBJ "src/util/io/zstd_stream.cpp" "src/util/io/zstd_bridge.cpp")
+  set(ZSTD_OBJ  "src/util/io/zstd_bridge.cpp")
 endif()
 
 if(X86)
@@ -534,6 +523,7 @@ add_diamond_test_exit_code(makedb-nr_10k "makedb --in ${TD}/nr_10k.faa -d nr_10k
 
 add_test(NAME blastp COMMAND ${CMAKE_COMMAND} -DNAME=blastp "-DARGS=blastp -q ${TD}/1.faa -d ${TD}/2.faa -p1" ${SP})
 add_test(NAME blastp_nr10k COMMAND ${CMAKE_COMMAND} -DNAME=blastp_nr10k "-DARGS=blastp -q ${TD}/nr_10k.faa -d nr_10k.dmnd -p4 -f 6 qseqid sseqid evalue staxids skingdoms sphylums" ${SP})
+add_test(NAME blastp-cbs6 COMMAND ${CMAKE_COMMAND} -DNAME=blastp-cbs6 "-DARGS=blastp -q ${TD}/nr_10k.faa -d ${TD}/nr_10k.faa -p4 -c1 -k0 --comp-based-stats 6" ${SP})
 add_test(NAME blastp_blastdb COMMAND ${CMAKE_COMMAND} -DNAME=blastp_blastdb "-DARGS=blastp -q ${TD}/nr_10k.faa -d ${TD}/blast/nr_10k -p4 -c1 -k0" ${SP})
 add_test(NAME blastp_blastaliasdb-seqidlist COMMAND ${CMAKE_COMMAND} -DNAME=blastp_blastaliasdb_seqidlist "-DARGS=blastp -q ${TD}/nr_10k.faa -d ${TD}/blast/nr_10k_filtered -p4 -c1 -k0" ${SP})
 add_test(NAME blastp-mid-sens COMMAND ${CMAKE_COMMAND} -DNAME=blastp-mid-sens "-DARGS=blastp -q ${TD}/3.faa -d ${TD}/4.faa --mid-sensitive -p1" ${SP})
@@ -545,11 +535,11 @@ add_test(NAME blastx-nanopore-fna COMMAND ${CMAKE_COMMAND} -DNAME=blastx-nanopor
 add_test(NAME blastp-global-ranking COMMAND ${CMAKE_COMMAND} -DNAME=blastp-global-ranking "-DARGS=blastp -q ${TD}/nr_10k.faa -d ${TD}/nr_10k.faa -p4 -c1 -k0 --sensitive -s1 -g10 -b0.002" ${SP})
 add_test(NAME blastp-blocked COMMAND ${CMAKE_COMMAND} -DNAME=blastp-blocked "-DARGS=blastp -q ${TD}/nr_10k.faa -d ${TD}/nr_10k.faa -p4 -c1 -b0.002" ${SP})
 add_test(NAME linclust COMMAND ${CMAKE_COMMAND} -DNAME=linclust "-DARGS=linclust -d ${TD}/nr_10k.faa -p4 --approx-id 0" ${SP})
-add_test(NAME linclust_reps COMMAND ${CMAKE_COMMAND} -DTEST_DIR=${CMAKE_SOURCE_DIR}/src/test -P ${CMAKE_SOURCE_DIR}/src/test/linclust_reps.cmake)
+add_test(NAME deepclust COMMAND ${CMAKE_COMMAND} -DNAME=deepclust "-DARGS=deepclust -d ${TD}/nr_10k.faa -p4" ${SP})
 add_test(NAME realign COMMAND ${CMAKE_COMMAND} -DNAME=realign "-DARGS=realign -d ${TD}/nr_10k.faa -p1 --clusters ${TD}/linclust.out" ${SP})
-add_test(NAME unit COMMAND diamond test)
 add_test(NAME blastp-daa COMMAND ${CMAKE_COMMAND} -DNAME=blastp-daa "-DARGS=blastp -q ${TD}/nr_300.faa -d nr_10k.dmnd -p1 -f 100 -c1 --no-auto-append --daa-build-version 179" ${SP})
 add_test(NAME view COMMAND ${CMAKE_COMMAND} -DNAME=view "-DARGS=view -a ${TD}/test.daa -p4 -k0" ${SP})
+#add_diamond_test(greedy_vertex_cover_numeric "greedy-vertex-cover --edges ${TD}/greedy_vertex_cover_numeric.tsv --edge-format triplet --symmetric --max-id 4 -p1")
 add_diamond_test(diamond-test-blastp-default "blastp -q ${TD}/data.faa -d ${TD}/data.faa -p1")
 add_diamond_test(diamond-test-blastp-multithreaded "blastp -q ${TD}/data.faa -d ${TD}/data.faa -p4")
 add_diamond_test(diamond-test-blastp-blocked "blastp -q ${TD}/data.faa -d ${TD}/data.faa -c1 -b0.00002 -p4")

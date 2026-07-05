@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <iostream>
-#include <stdexcept>
-#include "cluster/multinode/len_sort.h"
 
 int run_queue_stress_test();
 int run_hit_buffer_stress_test();
@@ -27,34 +25,8 @@ void filestack();
 
 namespace Test {
 
-static void require(bool value, const char* message) {
-	if (!value)
-		throw std::runtime_error(message);
-}
-
-static void len_sort_block_limits() {
-	using Cluster::Multinode::can_add_to_len_sorted_block;
-	require(can_add_to_len_sorted_block(90, 9, 10, 100, 10, 1000), "Expected the last allowed sequence to fit.");
-	require(!can_add_to_len_sorted_block(100, 10, 1, 1000, 10, 1000), "Expected sequence count cap to stop the block.");
-	require(!can_add_to_len_sorted_block(90, 9, 11, 100, 10, 1000), "Expected letter cap to stop a non-empty block.");
-	require(can_add_to_len_sorted_block(0, 0, 200, 100, 10, 1000), "Expected a single oversized sequence to form a block.");
-	require(can_add_to_len_sorted_block(10, 2, 1, 1000, 10, 270), "Expected raw packed-position cap boundary to fit.");
-	require(!can_add_to_len_sorted_block(10, 2, 2, 1000, 10, 270), "Expected raw packed-position cap to stop the block.");
-	require(!can_add_to_len_sorted_block(0, 0, 800, 1000, 10, 1000), "Expected an unrepresentable sequence to fail.");
-}
-
-static void block_combo_chunk_sizes() {
-	using Cluster::Multinode::block_combo_chunk_size;
-	require(block_combo_chunk_size(1, 1) == 1.0, "Expected tiny inputs to use a one GB chunk.");
-	require(block_combo_chunk_size(1000000000, 1) == 1.0, "Expected exact GB input to fit in one chunk.");
-	require(block_combo_chunk_size(1000000001, 1) == 2.0, "Expected chunk size to round up.");
-	require(block_combo_chunk_size(1024000000000, 1109673588218) == 1110.0, "Expected generated PSC block to fit without re-chunking.");
-}
-
 int run() {
-	len_sort_block_limits();
-	block_combo_chunk_sizes();
-	std::cerr << "Unit tests passed." << std::endl;
+	std::cerr << "The test workflow is deprecated. Unit testing is available via CTest. No action was taken." << std::endl;
 	return 0;
 	//filestack();	
 	

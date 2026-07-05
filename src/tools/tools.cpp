@@ -59,13 +59,13 @@ void split() {
 	string id;
 	vector<Letter> seq;
 	size_t n = 0, f = 0, b = (size_t)(config.chunk_size * 1e9), seqs = 0;
-	OutputFile *out = new OutputFile(std::to_string(f) + ".faa.zst", Compressor::ZSTD);
+	File *out = new File(std::to_string(f) + ".faa.zst", "wb", File::Flags::NONE, CompressionLib::ZSTD);
 	TextBuffer buf;
 	while (in->read_seq(seq, id, nullptr)) {
 		if (n >= b) {
 			out->close();
 			delete out;
-			out = new OutputFile(std::to_string(++f) + ".faa.zst", Compressor::ZSTD);
+			out = new File(std::to_string(++f) + ".faa.zst", "wb", File::Flags::NONE, CompressionLib::ZSTD);
 			n = 0;
 		}
 		string blast_id = Util::Seq::seqid(id.c_str());

@@ -244,12 +244,12 @@ vector<Match> extend(
 		query_seq.push_back(cfg.query->seqs()[query_id * contexts + i]);
 	const unsigned query_len = (unsigned)query_seq.front().length();
 
-	if (::Stats::CBS::hauser(config.comp_based_stats)) {
+	if (::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS))) {
 		for (unsigned i = 0; i < contexts; ++i)
 			query_cb.emplace_back(query_seq[i]);
 	}
 	::Stats::Composition query_comp;
-	if (::Stats::CBS::matrix_adjust(config.comp_based_stats))
+	if (::Stats::CBS::matrix_adjust(config.comp_based_stats_.get(Stats::DEFAULT_CBS)))
 		query_comp = ::Stats::composition(query_seq[0]);
 
 	const int source_query_len = align_mode.query_translated ? (int)cfg.query->source_seqs()[query_id].length() : (int)cfg.query->seqs()[query_id].length();

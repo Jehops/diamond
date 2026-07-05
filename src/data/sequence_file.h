@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 #include <utility>
 #include <unordered_map>
-#include "util/io/input_file.h"
 #include "sequence_set.h"
 #include "util/data_structures/bit_vector.h"
 #include "util/enum.h"
@@ -181,8 +180,6 @@ struct SequenceFile {
 	void init_random_access(const size_t query_block, const size_t ref_blocks, bool dictionary = true);
 	virtual void end_random_access(bool dictionary = true) = 0;
 	virtual std::vector<OId> accession_to_oid(const std::string& acc) const;
-	virtual void init_write();
-	virtual void write_seq(const Sequence& seq, const std::string& id);
 	virtual ~SequenceFile();
 	virtual void print_info() const;
 

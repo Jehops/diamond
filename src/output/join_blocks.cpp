@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <memory>
 #include <thread>
 #include "output.h"
-#include "util/io/temp_file.h"
 #include "legacy/daa/daa_write.h"
 #include "output_format.h"
 #include "target_culling.h"
@@ -350,7 +349,7 @@ void join_blocks(int64_t ref_blocks, File &master_out, const vector<File*> &tmp_
 
 	const StringSet& query_ids = cfg.query->ids();
 
-	unique_ptr<TempFile> merged_query_list;
+	//unique_ptr<TempFile> merged_query_list;
 	/*if (config.global_ranking_targets)
 		merged_query_list.reset(new TempFile());
 	JoinWriter writer(config.global_ranking_targets ? *merged_query_list : master_out);*/

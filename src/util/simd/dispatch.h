@@ -1,6 +1,7 @@
 /****
 DIAMOND protein sequence aligner
 Copyright (C) 2012-2026 Benjamin J. Buchfink
+Arm NEON port contributed by Martin Larralde <martin.larralde@embl.de>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

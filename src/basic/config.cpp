@@ -28,7 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/log_stream.h"
 #include "basic/value.h"
 #include "stats/score_matrix.h"
-#include "util/io/temp_file.h"
 #include "util/sequence/translate.h"
 #include "masking/masking.h"
 #include "util/system/system.h"
@@ -182,6 +181,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		.add_command("test", "Run regression tests", regression_test)
 		.add_command("makeidx", "Make database index", makeidx)
 		.add_command("greedy-vertex-cover", "Compute greedy vertex cover", GREEDY_VERTEX_COVER)
+		//.add_command("composition-matrix", "Compute compositionally adjusted BLOSUM62 matrices for all sequence pairs", COMPOSITION_MATRIX)
 		.add_command("roc", "", roc)
 		.add_command("benchmark", "", benchmark)
 		.add_command("deepclust", "", DEEPCLUST)
@@ -213,7 +213,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 #endif
 		;
 
-	auto& general = parser.add_group("General options", { makedb, blastp, blastx, cluster, view, getseq, dbinfo, makeidx, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, MERGE_DAA, LINCLUST, CLUSTER_REASSIGN });
+	auto& general = parser.add_group("General options", { makedb, blastp, blastx, cluster, view, getseq, dbinfo, makeidx, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, MERGE_DAA, LINCLUST, CLUSTER_REASSIGN, COMPOSITION_MATRIX });
 	general.add()
 		("threads", 'p', "number of CPU threads", threads_)
 		("log", 0, "enable debug log", debug_log)
@@ -221,11 +221,11 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("tmpdir", 't', "directory for temporary files", tmpdir)
 		("keep-temp-files", 0, "do not delete temporarary files", keep_temp_files);
 
-	auto& general_db = parser.add_group("General/database options", { makedb, blastp, blastx, cluster, getseq, dbinfo, makeidx, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, LINCLUST, CLUSTER_REASSIGN });
+	auto& general_db = parser.add_group("General/database options", { makedb, blastp, blastx, cluster, getseq, dbinfo, makeidx, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, LINCLUST, CLUSTER_REASSIGN, COMPOSITION_MATRIX });
 	general_db.add()
 		("db", 'd', "database file", database);
 
-	auto& general_out = parser.add_group("General/output", { blastp, blastx, cluster, view, getseq, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, MERGE_DAA, LINCLUST, CLUSTER_REASSIGN });
+	auto& general_out = parser.add_group("General/output", { blastp, blastx, cluster, view, getseq, CLUSTER_REALIGN, GREEDY_VERTEX_COVER, DEEPCLUST, RECLUSTER, MERGE_DAA, LINCLUST, CLUSTER_REASSIGN, COMPOSITION_MATRIX });
 	general_out.add()
 		("out", 'o', "output file", output_file);
 
@@ -244,10 +244,11 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("taxonnodes", 0, "taxonomy nodes.dmp from NCBI", nodesdmp)
 		("taxonnames", 0, "taxonomy names.dmp from NCBI", namesdmp);
 
-	auto& align_clust_realign = parser.add_group("Aligner/Clustering/Realign options", { blastp, blastx, cluster, RECLUSTER, CLUSTER_REASSIGN, DEEPCLUST, CLUSTER_REALIGN, LINCLUST });
+	auto& align_clust_realign = parser.add_group("Aligner/Clustering/Realign options", { blastp, blastx, cluster, RECLUSTER, CLUSTER_REASSIGN, DEEPCLUST, CLUSTER_REALIGN, LINCLUST, COMPOSITION_MATRIX });
 	align_clust_realign.add()
-		("comp-based-stats", 0, "composition based statistics mode (0-4)", comp_based_stats, 1u)
-		("masking", 0, "masking algorithm (none, seg, tantan=default)", masking_)
+		("comp-based-stats", 0, "composition based statistics mode (0-6)", comp_based_stats_)
+		("relative-entropy-tolerance", 0, "tolerance for matrix adjust relative entropy (default=0.001)", relative_entropy_tolerance, 0.001)
+		("masking", 0, "masking algorithm (none, seg, seg-all, tantan=default)", masking_)
 		("soft-masking", 0, "soft masking (none=default, seg, tantan)", soft_masking)
 		("no-block-size-limit", 0, "", no_block_size_limit);
 
@@ -313,7 +314,8 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("taxonlist", 0, "restrict search to list of taxon ids (comma-separated)", taxonlist)
 		("taxon-exclude", 0, "exclude list of taxon ids (comma-separated)", taxon_exclude)
 		("seqidlist", 0, "filter the database by list of accessions", seqidlist)
-		("skip-missing-seqids", 0, "ignore accessions missing in the database", skip_missing_seqids);
+		("skip-missing-seqids", 0, "ignore accessions missing in the database", skip_missing_seqids)
+		("symmetrize-evalue", 0, "symmetrize evalues over queries and targets", symmetrize_evalue);
 
 	SequenceFile::init_taxon_output_fields();
 	std::ostringstream format_str;
@@ -373,6 +375,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("centroid-out", 0, "Output file for centroids", centroid_out)
 		("edges", 0, "Input file for greedy vertex cover", edges)
 		("edge-format", 0, "Edge format for greedy vertex cover (default/triplet)", edge_format)
+		("max-oid", 0, "Maximum ordinal vertex ID (enables direct numeric indexing)", max_oid)
 		("symmetric", 0, "Edges are symmetric", symmetric);
 
 	auto& realign_opt = parser.add_group("Cluster input options", { CLUSTER_REALIGN, RECLUSTER, CLUSTER_REASSIGN });
@@ -432,6 +435,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("gapped-filter-evalue", 0, "E-value threshold for gapped filter (auto)", gapped_filter_evalue_, -1.0)
 		("band", 0, "band for dynamic programming computation", padding)
 		("shape-mask", 0, "seed shapes", shape_mask)
+		("taxdump", 0 , "directory containing NCBI taxdump files", taxdump)
 		("multiprocessing", 0, "enable distributed-memory parallel processing", multiprocessing)
 		("mp-init", 0, "initialize multiprocessing run", mp_init)
 		("mp-recover", 0, "enable continuation of interrupted multiprocessing run", mp_recover)
@@ -486,6 +490,10 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 	auto& getseq_options = parser.add_group("Getseq options", { getseq });
 	getseq_options.add()
 		("seq", 0, "Space-separated list of sequence numbers to display.", seq_no);
+
+	auto& composition_matrix_options = parser.add_group("Composition matrix options", { COMPOSITION_MATRIX });
+	composition_matrix_options.add()
+		("sample-size", 0, "randomly sample this many distinct sequence pairs", composition_matrix_sample_size);
 
 	double rank_ratio2, lambda, K;
 	unsigned window, min_ungapped_score, hit_band, min_hit_score;
@@ -685,19 +693,15 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 			frame_shift = 15;
 	}
 
-	if (global_ranking_targets > 0 && (query_range_culling || taxon_k || multiprocessing || mp_init || mp_recover || comp_based_stats >= 2 || frame_shift > 0))
+	if (global_ranking_targets > 0 && (query_range_culling || taxon_k || multiprocessing || mp_init || mp_recover || comp_based_stats_.get(Stats::DEFAULT_CBS) >= 2 || frame_shift > 0))
 		throw runtime_error("Global ranking is not supported in this mode.");
 
-#ifdef EXTRA
-	if (comp_based_stats >= Stats::CBS::COUNT)
-#else
-	if (comp_based_stats >= 6)
-#endif
-		throw std::runtime_error("Invalid value for --comp-based-stats. Permitted values: 0, 1, 2, 3, 4, 5.");
+	if (comp_based_stats_.get(Stats::DEFAULT_CBS) >= Stats::CBS::COUNT)
+		throw std::runtime_error("Invalid value for --comp-based-stats. Permitted values: 0, 1, 2, 3, 4, 5, 6.");
 
-	Stats::comp_based_stats = Stats::CBS(comp_based_stats, query_match_distance_threshold, length_ratio_threshold, cbs_angle);
+	Stats::comp_based_stats = Stats::CBS(comp_based_stats_.get(Stats::DEFAULT_CBS), query_match_distance_threshold, length_ratio_threshold, cbs_angle);
 
-	if (command == blastx && !Stats::CBS::support_translated(comp_based_stats))
+	if (command == blastx && !Stats::CBS::support_translated(comp_based_stats_.get(Stats::DEFAULT_CBS)))
 		throw std::runtime_error("This mode of composition based stats is not supported for translated searches.");
 
     if (check_io) {
@@ -735,6 +739,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 
 		switch (command) {
 		case Config::dbinfo:
+		case Config::COMPOSITION_MATRIX:
 			if (database == "")
 				throw runtime_error("Missing parameter: database file (--db/-d)");
 		}
@@ -819,6 +824,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 	case Config::RECLUSTER:
 	case Config::MODEL_SEQS:
 	case Config::MAKE_SEED_TABLE:
+	case Config::COMPOSITION_MATRIX:
 		if (frame_shift != 0 && command == Config::blastp)
 			throw runtime_error("Frameshift alignments are only supported for translated searches.");
 		if (query_range_culling && frame_shift == 0)
@@ -834,7 +840,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 				throw runtime_error("Custom scoring matrices require setting the --gapopen and --gapextend options.");
 			if (!output_format.empty() && (output_format.front() == "daa" || output_format.front() == "100"))
 				throw runtime_error("Custom scoring matrices are not supported for the DAA format.");
-			if (comp_based_stats > 1)
+			if (comp_based_stats_.get(Stats::DEFAULT_CBS) > 1)
 				throw runtime_error("This value for --comp-based-stats is not supported when using a custom scoring matrix.");
 			score_matrix = ScoreMatrix(matrix_file, gap_open, gap_extend, stop_match_score, ScoreMatrix::Custom());
 		}
@@ -848,7 +854,6 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		|| command == Config::RECLUSTER || command == Config::DEEPCLUST || command == Config::LINCLUST) {
 		if (tmpdir == "")
 			tmpdir = extract_dir(output_file);
-		temp_file_handler.init(tmpdir.c_str());
 
 		raw_ungapped_xdrop = score_matrix.rawscore(ungapped_xdrop);
 		*log_stream << "CPU features detected: " << SIMD::features() << endl;
@@ -919,7 +924,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 	trace_pt_membuf = hit_membuf;
 
 	if (command != Config::version) {
-		static const std::chrono::time_point<std::chrono::system_clock> release_time = std::chrono::system_clock::from_time_t(1781790757);
+		static const std::chrono::time_point<std::chrono::system_clock> release_time = std::chrono::system_clock::from_time_t(1783277374);
 		if (std::chrono::system_clock::now() - release_time > std::chrono::hours(180 * 24)) {
 			set_color(Color::YELLOW, true);
 			cerr << "Warning: This version of DIAMOND is more than 180 days old. It is recommended to always use the latest version." << endl;

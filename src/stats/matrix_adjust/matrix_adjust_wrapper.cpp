@@ -42,11 +42,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 * ===========================================================================*/
 
 #include "basic/config.h"
-#include "score_matrix.h"
-#include "blast/linear_algebra.h"
-//#include "blast/nlm_linear_algebra.h"
-//#include "linear_algebra.h"
-#include "cbs.h"
+#include "../score_matrix.h"
+#include "linear_algebra_ncbi.h"
+#include "../cbs.h"
+#include "../stats.h"
 
 using std::vector;
 using std::array;
@@ -60,15 +59,15 @@ static const double kFixedReBlosum62 = 0.44;
 
 /* Documented in composition_adjustment.h. */
 void
-Blast_ApplyPseudocounts(MatrixFloat* probs20,
+Blast_ApplyPseudocounts(double* probs20,
     int number_of_observations,
-    const MatrixFloat* background_probs20)
+    const double* background_probs20)
 {
     int i;                 /* loop index */
-    MatrixFloat weight;         /* weight assigned to pseudocounts */
-    MatrixFloat sum;            /* sum of the observed frequencies */
+    double weight;         /* weight assigned to pseudocounts */
+    double sum;            /* sum of the observed frequencies */
     /* pseudocounts as a double */
-    MatrixFloat dpseudocounts = kReMatrixAdjustmentPseudocounts;
+    double dpseudocounts = kReMatrixAdjustmentPseudocounts;
     /* Normalize probabilities */
     sum = 0.0;
     for (i = 0; i < COMPO_NUM_TRUE_AA; i++) {
@@ -86,8 +85,8 @@ Blast_ApplyPseudocounts(MatrixFloat* probs20,
 
 /* Documented in composition_adjustment.h. */
 void
-Blast_TrueAaToStdTargetFreqs(MatrixFloat** StdFreq, size_t StdAlphsize,
-    const MatrixFloat* freq)
+Blast_TrueAaToStdTargetFreqs(double** StdFreq, size_t StdAlphsize,
+    const double* freq)
 {
     /* Note I'm using a rough convention for this routine that uppercase
      * letters refer to quantities in the standard (larger) alphabet
@@ -98,7 +97,7 @@ Blast_TrueAaToStdTargetFreqs(MatrixFloat** StdFreq, size_t StdAlphsize,
     const int small_alphsize = COMPO_NUM_TRUE_AA;
     size_t A, B;          /* characters in the std (big) alphabet */
     size_t a, b;          /* characters in the small alphabet */
-    MatrixFloat sum;        /* sum of values in target_freq; used to normalize */
+    double sum;        /* sum of values in target_freq; used to normalize */
     sum = 0.0;
     for (a = 0; a < small_alphsize; a++) {
         for (b = 0; b < small_alphsize; b++) {
@@ -152,8 +151,8 @@ Blast_TrueAaToStdTargetFreqs(MatrixFloat** StdFreq, size_t StdAlphsize,
 
 /* Documented in composition_adjustment.h. */
 void
-Blast_CalcFreqRatios(MatrixFloat** ratios, int alphsize,
-    const MatrixFloat row_prob[], const MatrixFloat col_prob[])
+Blast_CalcFreqRatios(double** ratios, int alphsize,
+    const double row_prob[], const double col_prob[])
 {
     int i, j;
     for (i = 0; i < alphsize; i++) {
@@ -185,9 +184,9 @@ Blast_CalcFreqRatios(MatrixFloat** ratios, int alphsize,
  */
 static int
 s_ScoresStdAlphabet(int** Matrix, size_t Alphsize,
-    const MatrixFloat* target_freq,
-    const MatrixFloat row_prob[], const MatrixFloat col_prob[],
-    MatrixFloat Lambda)
+    const double* target_freq,
+    const double row_prob[], const double col_prob[],
+    double Lambda)
 {
     /* Note: I'm using a rough convention for this routine that uppercase
      * letters refer to quantities in the standard (larger) alphabet
@@ -198,7 +197,7 @@ s_ScoresStdAlphabet(int** Matrix, size_t Alphsize,
     //double RowProb[COMPO_LARGEST_ALPHABET];
     //double ColProb[COMPO_LARGEST_ALPHABET];
     ///* A double precision score matrix */
-    MatrixFloat** Scores = Nlm_DenseMatrixNew(Alphsize, Alphsize);
+    double** Scores = Nlm_DenseMatrixNew(Alphsize, Alphsize);
     if (Scores == NULL) {
         return -1;
     }
@@ -229,11 +228,11 @@ Blast_CompositionMatrixAdj(int** matrix,
     EMatrixAdjustRule matrix_adjust_rule,
     int length1,
     int length2,
-    const MatrixFloat* stdaa_row_probs,
-    const MatrixFloat* stdaa_col_probs,
+    const double* stdaa_row_probs,
+    const double* stdaa_col_probs,
     double lambda,
-    const MatrixFloat* joint_probs,
-    const MatrixFloat* background_freqs,
+    const double* joint_probs,
+    const double* background_freqs,
     Statistics& stats)
 {
     /*for (int i = 0; i < 20; ++i)
@@ -243,10 +242,10 @@ Blast_CompositionMatrixAdj(int** matrix,
         printf("%.10f ", stdaa_col_probs[i]);
     printf("\n");*/
     int iteration_count, status;
-    MatrixFloat row_probs[COMPO_NUM_TRUE_AA], col_probs[COMPO_NUM_TRUE_AA];
+    double row_probs[COMPO_NUM_TRUE_AA], col_probs[COMPO_NUM_TRUE_AA];
     /* Target RE when optimizing the matrix; zero if the relative
        entropy should not be constrained. */
-    MatrixFloat desired_re = 0.0;
+    double desired_re = 0.0;
     std::copy(stdaa_row_probs, stdaa_row_probs + 20, row_probs);
     std::copy(stdaa_col_probs, stdaa_col_probs + 20, col_probs);
 
@@ -283,7 +282,7 @@ Blast_CompositionMatrixAdj(int** matrix,
     Blast_ApplyPseudocounts(col_probs, length2,
         background_freqs);
 
-    array<MatrixFloat, TRUE_AA * TRUE_AA> mat_final;
+    array<double, TRUE_AA * TRUE_AA> mat_final;
     status = Blast_OptimizeTargetFrequencies(mat_final.data(),
 	COMPO_NUM_TRUE_AA,
         &iteration_count,
@@ -314,10 +313,10 @@ Blast_CompositionMatrixAdj(int** matrix,
 /** Return true if length > 50 and the two most frequent letters
  * occur a total of more that 40% of the time. */
 static int
-s_HighPairFrequencies(const MatrixFloat* letterProbs, int length)
+s_HighPairFrequencies(const double* letterProbs, int length)
 {
     int i; /*index*/
-    MatrixFloat max, second; /*two highest letter probabilities*/
+    double max, second; /*two highest letter probabilities*/
 
     if (length <= LENGTH_LOWER_THRESHOLD) {
         return false;
@@ -340,8 +339,8 @@ s_HighPairFrequencies(const MatrixFloat* letterProbs, int length)
  * Return true if either the query or the matching sequences
  * passes the test in s_HighPairFrequencies. */
 static int
-s_HighPairEitherSeq(const MatrixFloat* P_query, int length1,
-    const MatrixFloat* P_match, int length2)
+s_HighPairEitherSeq(const double* P_query, int length1,
+    const double* P_match, int length2)
 {
     int result1, result2;
 
@@ -352,12 +351,12 @@ s_HighPairEitherSeq(const MatrixFloat* P_query, int length1,
 }
 
 /* Documented in composition_adjustment.h. */
-MatrixFloat
-Blast_GetRelativeEntropy(const MatrixFloat A[], const MatrixFloat B[])
+double
+Blast_GetRelativeEntropy(const double A[], const double B[])
 {
     int i;                 /* loop index over letters */
-    MatrixFloat temp;           /* intermediate term */
-    MatrixFloat value = 0.0;    /* square of relative entropy */
+    double temp;           /* intermediate term */
+    double value = 0.0;    /* square of relative entropy */
 
     for (i = 0; i < COMPO_NUM_TRUE_AA; i++) {
         temp = (A[i] + B[i]) / 2;
@@ -384,17 +383,17 @@ Blast_GetRelativeEntropy(const MatrixFloat A[], const MatrixFloat B[])
 EMatrixAdjustRule
 s_TestToApplyREAdjustmentConditional(int Len_query,
     int Len_match,
-    const MatrixFloat* P_query,
-    const MatrixFloat* P_match,
-    const MatrixFloat* background_freqs)
+    const double* P_query,
+    const double* P_match,
+    const double* background_freqs)
 {
     EMatrixAdjustRule which_rule; /* which relative entropy mode to
                                      return */
     int i;                       /* loop indices */
-    MatrixFloat p_query[COMPO_NUM_TRUE_AA];
-    MatrixFloat p_match[COMPO_NUM_TRUE_AA]; /*letter probabilities
+    double p_query[COMPO_NUM_TRUE_AA];
+    double p_match[COMPO_NUM_TRUE_AA]; /*letter probabilities
                                                 for query and match*/
-    const MatrixFloat* p_matrix;       /* letter probabilities used in
+    const double* p_matrix;       /* letter probabilities used in
                                      constructing matrix name*/
     double D_m_mat, D_q_mat, D_m_q;  /* distances between match and
                                         original between query and
@@ -454,7 +453,7 @@ s_TestToApplyREAdjustmentConditional(int Len_query,
     return which_rule;
 }
 
-void CompositionMatrixAdjust(int query_len, int target_len, const MatrixFloat* query_comp, const MatrixFloat* target_comp, int scale, MatrixFloat ungapped_lambda, const MatrixFloat* joint_probs, const MatrixFloat* background_freqs, array<int, AMINO_ACID_COUNT * AMINO_ACID_COUNT>& out, Statistics& stats) {
+void CompositionMatrixAdjust(int query_len, int target_len, const double* query_comp, const double* target_comp, int scale, double ungapped_lambda, const double* joint_probs, const double* background_freqs, array<int, AMINO_ACID_COUNT * AMINO_ACID_COUNT>& out, Statistics& stats) {
     array<int*, AMINO_ACID_COUNT> p;
     for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
         p[i] = &out[i * AMINO_ACID_COUNT];
@@ -473,6 +472,73 @@ void CompositionMatrixAdjust(int query_len, int target_len, const MatrixFloat* q
                 out[i * AMINO_ACID_COUNT + j] = score_matrix(i, j) * scale;
         //throw std::runtime_error("Error computing composition matrix adjust.");
     }
+}
+
+static bool smaller(const double* a, const double* b) {
+    for (int i = 0; i < TRUE_AA; ++i) {
+        if (a[i] == b[i])
+            continue;
+        return a[i] < b[i];
+    }
+    return true;
+}
+
+void matrix_adjust(int query_len, int target_len, const double* query_comp, const double* target_comp, int scale, double ungapped_lambda,
+    const double* joint_probs, const double* background_freqs, const float* joint_probs_f, const float* background_freqs_f,
+    array<int, AMINO_ACID_COUNT* AMINO_ACID_COUNT>& out, Statistics& stats) {
+    static const bool double_precision = false;
+    array<int*, AMINO_ACID_COUNT> p;
+    for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
+        p[i] = &out[i * AMINO_ACID_COUNT];
+
+    double row_probs[COMPO_NUM_TRUE_AA], col_probs[COMPO_NUM_TRUE_AA];
+    std::copy(query_comp, query_comp + COMPO_NUM_TRUE_AA, row_probs);
+    std::copy(target_comp, target_comp + COMPO_NUM_TRUE_AA, col_probs);
+
+    Blast_ApplyPseudocounts(row_probs, query_len, background_freqs);
+    Blast_ApplyPseudocounts(col_probs, target_len, background_freqs);
+
+    array<double, TRUE_AA * TRUE_AA> mat_final;
+    bool feasible;
+    const bool transpose = smaller(query_comp, target_comp);
+    if (double_precision) {
+        feasible = Stats::matrix_adjust_scalar(joint_probs, transpose ? col_probs : row_probs, transpose ? row_probs : col_probs, mat_final.data(), kFixedReBlosum62);
+        if (transpose) {
+            for (int i = 0; i < TRUE_AA; ++i)
+                for (int j = i + 1; j < TRUE_AA; ++j)
+                    std::swap(mat_final[i * TRUE_AA + j], mat_final[j * TRUE_AA + i]);
+        }
+    }
+    else {
+        float row_probs_f[COMPO_NUM_TRUE_AA];
+        alignas(32) float col_probs_f[PADDED_AA];
+        if (transpose) {
+            for (int i = 0; i < TRUE_AA; ++i) {
+                row_probs_f[i] = (float)col_probs[i];
+                col_probs_f[i] = (float)row_probs[i];
+            }
+        }
+        else {
+            for (int i = 0; i < TRUE_AA; ++i) {
+                row_probs_f[i] = (float)row_probs[i];
+                col_probs_f[i] = (float)col_probs[i];
+            }
+        }
+        std::fill(col_probs_f + TRUE_AA, col_probs_f + PADDED_AA, 0.0f);
+        alignas(32) array<float, TRUE_AA * PADDED_AA> mat_final_f;
+        feasible = Stats::matrix_adjust(joint_probs_f, row_probs_f, col_probs_f, mat_final_f.data(), (float)kFixedReBlosum62);
+        for (int i = 0; i < TRUE_AA; ++i)
+            for (int j = 0; j < TRUE_AA; ++j)
+                mat_final[i * TRUE_AA + j] = transpose ? mat_final_f[j * PADDED_AA + i] : mat_final_f[i * PADDED_AA + j];
+    }
+    
+    const int status = feasible ? s_ScoresStdAlphabet(p.data(), AMINO_ACID_COUNT, mat_final.data(), row_probs, col_probs, ungapped_lambda / scale) : -1;
+    if (status != 0) {
+        for (size_t i = 0; i < AMINO_ACID_COUNT; ++i)
+            for (size_t j = 0; j < AMINO_ACID_COUNT; ++j)
+                out[i * AMINO_ACID_COUNT + j] = score_matrix(i, j) * scale;
+    }
+    (void)stats;
 }
 
 }

@@ -88,11 +88,12 @@ BlastDB::BlastDB(const string& file_name, Flags flags, const ValueTraits& value_
 	}
 	string dbdir, dbfile;
 	tie(dbdir, dbfile) = absolute_path(file_name);
+	const string taxdump_dir = config.taxdump.empty() ? dbdir : config.taxdump;
 	if (flag_any(flags_, Flags::TAXON_RANKS)) {
-		const string file = dbdir + PATH_SEPARATOR + "nodes.dmp";
+		const string file = taxdump_dir + PATH_SEPARATOR + "nodes.dmp";
 		if(!exists(file))
 			throw runtime_error("Taxonomy rank information (nodes.dmp) is missing in search path ("
-				+ dbdir + "). Download and extract this file in the database directory: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.zip");
+				+ taxdump_dir + "). Download and extract this file in the database directory or another directory specified by --taxdump: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.zip");
 		int next_rank = Rank::count;
 		auto f = [&](TaxId taxid, TaxId parent, const string& rank) {
 			const int p = Rank::predefined(rank.c_str());
@@ -127,10 +128,10 @@ BlastDB::BlastDB(const string& file_name, Flags flags, const ValueTraits& value_
 	}
 	if (flag_any(flags_, Flags::TAXON_SCIENTIFIC_NAMES)) {
 		//throw runtime_error("Taxonomy information (scientific names) is missing. Make sure that the BLAST database was downloaded correctly and that taxonomy files (taxdb.bti) are present in the database search paths (current working directory, BLAST database directory, BLASTDB environment variable)");
-		const string file = dbdir + PATH_SEPARATOR + "names.dmp";
+		const string file = taxdump_dir + PATH_SEPARATOR + "names.dmp";
 		if (!exists(file))
 			throw runtime_error("Taxonomy names information (names.dmp) is missing in search path ("
-				+ dbdir + "). Download and extract this file in the database directory: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.zip");
+				+ taxdump_dir + "). Download and extract this file in the database directory or another directory specified by --taxdump: https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.zip");
 		auto f = [&](TaxId taxid, const string& name) {
 			if (extra_names_.find(taxid) == extra_names_.end())
 				extra_names_.emplace(taxid, name);
@@ -514,12 +515,4 @@ vector<OId> BlastDB::accession_to_oid(const string& acc) const
 BlastDB::~BlastDB()
 {
 	close();
-}
-
-void BlastDB::init_write() {
-	throw OperationNotSupported();
-}
-
-void BlastDB::write_seq(const Sequence& seq, const string& id) {
-	throw OperationNotSupported();
 }

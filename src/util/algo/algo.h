@@ -28,33 +28,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace Util { namespace Algo {
 
-template<typename Int>
-struct Edge {
-	static constexpr bool POD = true;
-	Edge()
-	{}
-	using Key = Int;
-	Edge(Key node1, Key node2, double weight) :
-		node1(node1),
-		node2(node2),
-		weight(weight)
-	{}
-	bool operator<(const Edge& e) const {
-		return node1 < e.node1 || (node1 == e.node1 && node2 < e.node2);
-	}
-	struct GetKey {
-		Key operator()(const Edge& e) const {
-			return e.node1;
-		}
-	};
-	Key node1, node2;
-	double weight;
-};
-
-template<typename Int>
-std::vector<Int> greedy_vertex_cover(FlatArray<Edge<Int>>& neighbors, const Int* member_counts = nullptr, bool merge_recursive = false, bool reassign = true, Int connected_component_depth = 0);
-template<typename Int>
-std::vector<Int> cluster_pr(FlatArray<Edge<Int>>& neighbors);
+//template<typename Int>
+//std::vector<Int> cluster_pr(FlatArray<Edge<Int>>& neighbors);
 //template<typename Int> FlatArray<Int> mcl(FlatArray<Int>& neighbors);
 
 template<typename It, typename Out>

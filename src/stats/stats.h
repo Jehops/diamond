@@ -23,7 +23,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace Stats {
 
+bool matrix_adjust_scalar(const double* q, const double* P, const double* Q, double* x, double target_re);
+bool matrix_adjust_scalar(const float* q, const float* P, const float* Q, float* x, float target_re);
+// Float SIMD path: q, Q, and x use a 24-column padded stride.
+bool matrix_adjust(const float* q, const float* P, const float* Q, float* x, float target_re);
 double approx_id(Score raw_score, Loc range1, Loc range2);
 //double approx_id(int score, Interval query_range, Interval target_range, const Sequence& query, const Sequence& target);
+
+int
+Blast_OptimizeTargetFrequencies(double x[],
+    int alphsize,
+    int* iterations,
+    const double q[],
+    const double row_sums[],
+    const double col_sums[],
+    int constrain_rel_entropy,
+    double relative_entropy,
+    double tol,
+    int maxits);
 
 }

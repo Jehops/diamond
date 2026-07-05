@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/simd/dispatch.h"
 #include "dp/score_vector_int16.h"
 #include "search/hit_buffer.h"
+#include "stats/stats.h"
 
 using std::vector;
 using std::endl;
@@ -313,9 +314,9 @@ void swipe(const Sequence&s1, const Sequence&s2) {
 	Sequence query = s1;
 	query.len_ = std::min(query.len_, (Loc)255);
 	auto dp_size = (n * query.length() * s2.length() * CHANNELS);
-	config.comp_based_stats = 4;
+	config.comp_based_stats_ = 4;
 	std::pmr::monotonic_buffer_resource pool;
-	Stats::TargetMatrix matrix(Stats::composition(s1), s1.length(), config.comp_based_stats, s2, stat, pool, Stats::eUserSpecifiedRelEntropy);
+	Stats::TargetMatrix matrix(Stats::composition(s1), s1.length(), config.comp_based_stats_.get(Stats::DEFAULT_CBS), s2, stat, pool, Stats::eUserSpecifiedRelEntropy);
 	DP::Params params{
 		query, "", Frame(0), query.length(), cbs.int8.data(), DP::Flags::FULL_MATRIX, false, 0, 0, HspValues(), stat, nullptr
 	};
@@ -490,9 +491,9 @@ void evalue() {
 void matrix_adjust(const Sequence& s1, const Sequence& s2) {
 	static const size_t n = 10000llu;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
-	vector<MatrixFloat> mat_final(TRUE_AA * TRUE_AA);
-	//int iteration_count;
-	const MatrixFloat* joint_probs = (const MatrixFloat*)(Stats::blosum62.joint_probs);
+	vector<double> mat_final(TRUE_AA * TRUE_AA);
+	int iteration_count;
+	const double* joint_probs = (const double*)(Stats::blosum62.joint_probs);
 	auto row_probs = Stats::composition(s1), col_probs = Stats::composition(s2);
 	/*f or (int i = 0; i < 20; ++i)
 		printf("%f,", row_probs[i]);
@@ -507,7 +508,7 @@ void matrix_adjust(const Sequence& s1, const Sequence& s2) {
 	Eigen::VectorXd row_probs_eig = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(row_probs.data(), TRUE_AA);
 	Eigen::VectorXd col_probs_eig = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(col_probs.data(), TRUE_AA);*/
 
-	/*for (size_t i = 0; i < n; ++i) {
+	for (size_t i = 0; i < n; ++i) {
 		std::fill(mat_final.begin(), mat_final.end(), 0.0);
 		Stats::Blast_OptimizeTargetFrequencies(mat_final.data(),
 			TRUE_AA,
@@ -520,13 +521,28 @@ void matrix_adjust(const Sequence& s1, const Sequence& s2) {
 			config.cbs_it_limit);
 	}
 
-	for (int i = 0; i < 20; ++i) {
+	/*for (int i = 0; i < 20; ++i) {
 		for (int j = 0; j < 20; ++j)
 			printf("%f ", mat_final[i * 20 + j]);
 		printf("\n");
+	}*/
+
+	*message_stream << "Matrix adjust:\t\t\t" << (double)duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - t1).count() / (n) << " us" << endl;
+	double out[20][20];
+	t1 = high_resolution_clock::now();
+
+	for (size_t i = 0; i < n; ++i) {
+		std::fill(mat_final.begin(), mat_final.end(), 0.0);
+		Stats::matrix_adjust_scalar(joint_probs, row_probs.data(), col_probs.data(), &out[0][0], 0.44);
 	}
 
-	message_stream << "Matrix adjust:\t\t\t" << (double)duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - t1).count() / (n) << " ms" << endl;*/
+	/*for (int i = 0; i < 20; ++i) {
+		for (int j = 0; j < 20; ++j)
+			printf("%f ", mat_final[i * 20 + j]);
+		printf("\n");
+	}*/
+
+	*message_stream << "Matrix adjust (sinkhorn):\t\t\t" << (double)duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - t1).count() / (n) << " us" << endl;
 
 	t1 = high_resolution_clock::now();
 	for (size_t i = 0; i < n; ++i) {
@@ -541,13 +557,13 @@ void matrix_adjust(const Sequence& s1, const Sequence& s2) {
 			config.cbs_it_limit);*/
 	}
 
-	for (int i = 0; i < 20; ++i) {
+	/*for (int i = 0; i < 20; ++i) {
 		for (int j = 0; j < 20; ++j)
 			printf("%f ", mat_final[i * 20 + j]);
 		printf("\n");
-	}
+	}*/
 
-	*message_stream << "Matrix adjust (openblas):\t\t\t" << (double)duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - t1).count() / (n) << " ms" << endl;
+	//*message_stream << "Matrix adjust (openblas):\t\t\t" << (double)duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - t1).count() / (n) << " ms" << endl;
 
 	//Profiler::print(n);
 }

@@ -119,11 +119,14 @@ static void run_ref_chunk(SequenceFile &db_file,
 		cfg.target->unmasked_seqs() = cfg.target->seqs();
 	}
 
-	if (cfg.target_masking != MaskingAlgo::NONE && !cfg.lazy_masking) {
+	if (cfg.target.get() == cfg.query.get() && cfg.target_masking != cfg.query_masking)
+		throw runtime_error("asymmetric masking for self alignment");
+
+	if (cfg.target_masking != MaskingAlgo::NONE && !cfg.lazy_masking && cfg.target.get() != cfg.query.get()) {
 		timer.go("Masking reference");
 		const MaskingStat stats = mask_seqs(cfg.target->seqs(), Masking::get(), true, cfg.target_masking);
 		timer.finish();
-		stats.print(*log_stream);
+		stats.print(*message_stream);
 	}
 
 	if (flag_any(cfg.output_format->flags, Output::Flags::SELF_ALN_SCORES)) {
@@ -252,8 +255,8 @@ static void run_ref_chunk(SequenceFile &db_file,
 
 static void run_query_iteration(const unsigned query_iteration,
 	File& master_out,
-	OutputFile* unaligned_file,
-	OutputFile* aligned_file,
+	File* unaligned_file,
+	File* aligned_file,
 	std::vector<File*>& tmp_file,
 	Config& options)
 {
@@ -452,8 +455,8 @@ static void run_query_iteration(const unsigned query_iteration,
 }
 
 static void run_query_chunk(File &master_out,
-	OutputFile *unaligned_file,
-	OutputFile *aligned_file,
+	File *unaligned_file,
+	File *aligned_file,
 	Config &options)
 {
 	auto P = Parallelizer::get();
@@ -686,11 +689,11 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 		options.out.reset(new File(config.output_file, "wb", File::Flags::TREAT_BLANK_AS_STDOUT, config.compressor()));
 	if (*options.output_format == OutputFormat::daa)
 		init_daa(*options.out.get());
-	unique_ptr<OutputFile> unaligned_file, aligned_file;
+	unique_ptr<File> unaligned_file, aligned_file;
 	if (!config.unaligned.empty())
-		unaligned_file = unique_ptr<OutputFile>(new OutputFile(config.unaligned));
+		unaligned_file = unique_ptr<File>(new File(config.unaligned, "wb"));
 	if (!config.aligned_file.empty())
-		aligned_file = unique_ptr<OutputFile>(new OutputFile(config.aligned_file));
+		aligned_file = unique_ptr<File>(new File(config.aligned_file, "wb"));
 	timer.finish();
 
 	//for (;query_file_offset < db_file->sequence_count(); ++options.current_query_block) { TODO
@@ -736,8 +739,9 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 
 		if (options.query_masking != MaskingAlgo::NONE) {
 			timer.go("Masking queries");
-			mask_seqs(options.query->seqs(), Masking::get(), true, options.query_masking);
+			const MaskingStat stats = mask_seqs(options.query->seqs(), Masking::get(), true, options.query_masking);
 			timer.finish();
+			stats.print(*message_stream);
 		}
 
 		run_query_chunk(*options.out, unaligned_file.get(), aligned_file.get(), options);
@@ -787,7 +791,7 @@ void run(unique_ptr<vector<BitVector>>& target_seed_hits, const shared_ptr<Seque
 	align_mode = AlignMode(AlignMode::from_command(config.command));
 	(align_mode.sequence_type == SequenceType::amino_acid) ? value_traits = amino_acid_traits : value_traits = nucleotide_traits;
 
-	*message_stream << "Temporary directory: " << TempFile::get_temp_dir() << endl;
+	*message_stream << "Temporary directory: " << File::tmp_dir() << endl;
 
 	if (config.sensitivity >= Sensitivity::VERY_SENSITIVE)
 		::Config::set_option(config.chunk_size, 0.4);

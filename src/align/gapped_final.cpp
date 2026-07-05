@@ -128,7 +128,7 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 				query_id,
 				Frame(frame),
 				source_query_len,
-				::Stats::CBS::hauser(config.comp_based_stats) ? query_cb[frame].int8.data() : nullptr,
+				::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
 				flags,
 				false,
 				0,
