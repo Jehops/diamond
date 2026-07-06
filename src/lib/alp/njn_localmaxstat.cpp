@@ -40,6 +40,7 @@ Contents:
 #include "njn_function.hpp"
 #include "njn_integer.hpp"
 #include "njn_localmaxstatutil.hpp"
+#include "util/math/math.h"
 
 using namespace Njn;
 
@@ -174,7 +175,7 @@ const double *prob_) // corresponding probabilities
     for (i = 0; i < getDimension (); i++) 
     {
         d_sigmaAssoc += static_cast <double> (getScore () [i]) * static_cast <double> (getScore () [i]) * 
-            getProb () [i] * exp (getLambda () * static_cast <double> (getScore () [i]));
+            getProb () [i] * Math::exp(getLambda () * static_cast <double> (getScore () [i]));
     }
 
     d_sigmaAssoc -= getMuAssoc () * getMuAssoc ();

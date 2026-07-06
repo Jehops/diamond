@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cfloat>
 #include <cmath>
+#include "util/math/math.h"
 
 using std::vector;
 
@@ -173,7 +174,7 @@ static bool calculate_inv_sum(double **matrix, int alpha_size, double tau, doubl
 
   for (int i=0; i<alpha_size; i++)
     for (int j=0; j<alpha_size; j++)
-      m[i][j] = exp(tau * matrix[i][j]);
+      m[i][j] = Math::exp(tau * matrix[i][j]);
 
   if(!invert(m, y, alpha_size))
     return false;
@@ -251,9 +252,9 @@ bool LambdaCalculator::find_ub(double **matrix, int alpha_size, double *ub)
   // the multiplication by 1.1 is sometimes necessary, presumably to
   // prevent the upper bound from being too tight:
   if (r_max_min > c_max_min)
-    *ub = 1.1 * log(1.0 * (alpha_size - l_r))/r_max_min;
+    *ub = 1.1 * Math::log(1.0 * (alpha_size - l_r))/r_max_min;
   else
-    *ub = 1.1 * log(1.0 * (alpha_size - l_c))/c_max_min;
+    *ub = 1.1 * Math::log(1.0 * (alpha_size - l_c))/c_max_min;
 
   return true;
 }
@@ -354,7 +355,7 @@ bool LambdaCalculator::check_lambda(double** matrix, double lambda, int alpha_si
 
   for (int i=0; i<alpha_size; i++)
     for (int j=0; j<alpha_size; j++)
-      m[i][j] = exp(lambda * matrix[i][j]);
+      m[i][j] = Math::exp(lambda * matrix[i][j]);
 
   invert(m, y, alpha_size);
 

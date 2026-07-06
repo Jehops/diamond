@@ -34,6 +34,7 @@ Contents: Calculation of P-values using precalculated Gumbel parameters
 ******************************************************************************/
 
 #include "sls_pvalues.hpp"
+#include "util/math/math.h"
 #include "sls_alp_data.hpp"
 #include <iomanip>      // std::setprecision
 
@@ -164,9 +165,9 @@ bool &area_is_1_flag_)
 
 
 	double P_m_F=sls_basic::normal_probability(m_F);
-	double P_m_F_error=const_val*exp(-0.5*m_F*m_F)*m_F_error;
+	double P_m_F_error=const_val*Math::exp(-0.5*m_F*m_F)*m_F_error;
 
-	double E_m_F=-const_val*exp(-0.5*m_F*m_F);
+	double E_m_F=-const_val*Math::exp(-0.5*m_F*m_F);
 	double E_m_F_error=fabs(-E_m_F*m_F)*m_F_error;
 
 	double m_li_y_P_m_F_error=alp_data::error_of_the_product(m_li_y,m_li_y_error,P_m_F,P_m_F_error);
@@ -215,9 +216,9 @@ bool &area_is_1_flag_)
 	};
 
 	double P_n_F=sls_basic::normal_probability(n_F);
-	double P_n_F_error=const_val*exp(-0.5*n_F*n_F)*n_F_error;
+	double P_n_F_error=const_val*Math::exp(-0.5*n_F*n_F)*n_F_error;
 
-	double E_n_F=-const_val*exp(-0.5*n_F*n_F);
+	double E_n_F=-const_val*Math::exp(-0.5*n_F*n_F);
 	double E_n_F_error=fabs(-E_n_F*n_F)*n_F_error;
 
 	double n_lj_y_P_n_F_error=alp_data::error_of_the_product(n_lj_y,n_lj_y_error,P_n_F,P_n_F_error);
@@ -273,8 +274,8 @@ bool &area_is_1_flag_)
 	};
 
 
-	double exp_lambda_y_error=fabs(lambda_error_*y_*exp(-lambda_*y_));
-	double exp_lambda_y=exp(-lambda_*y_);
+	double exp_lambda_y_error=fabs(lambda_error_*y_*Math::exp(-lambda_*y_));
+	double exp_lambda_y=Math::exp(-lambda_*y_);
 
 	double k_exp_lambda_y_error=alp_data::error_of_the_product(k_,k_error_,exp_lambda_y,exp_lambda_y_error);
 	double k_exp_lambda_y=k_*exp_lambda_y;
@@ -285,7 +286,7 @@ bool &area_is_1_flag_)
 	E_=-area_k_exp_lambda_y;
 	E_error_=area_k_exp_lambda_y_error;
 
-	P_error_=exp(area_k_exp_lambda_y)*area_k_exp_lambda_y_error;
+	P_error_=Math::exp(area_k_exp_lambda_y)*area_k_exp_lambda_y_error;
 
 	P_=sls_basic::one_minus_exp_function(area_k_exp_lambda_y);
 //	P_=1-exp(-k_*area*exp(-lambda_*y_));
@@ -448,7 +449,7 @@ bool compute_only_area_)
 
 	double P_m_F=sls_basic::normal_probability(m_F);
 
-	double E_m_F=-const_val*exp(-0.5*m_F*m_F);
+	double E_m_F=-const_val*Math::exp(-0.5*m_F*m_F);
 
 	double m_li_y_P_m_F=m_li_y*P_m_F;
 
@@ -482,7 +483,7 @@ bool compute_only_area_)
 
 	double P_n_F=sls_basic::normal_probability(n_F);
 
-	double E_n_F=-const_val*exp(-0.5*n_F*n_F);
+	double E_n_F=-const_val*Math::exp(-0.5*n_F*n_F);
 
 	double n_lj_y_P_n_F=n_lj_y*P_n_F;
 
@@ -532,7 +533,7 @@ bool compute_only_area_)
 		return;
 	};
 
-	double exp_lambda_y=exp(-lambda_*y_);
+	double exp_lambda_y=Math::exp(-lambda_*y_);
 
 	double k_exp_lambda_y=k_*exp_lambda_y;
 
@@ -548,13 +549,13 @@ bool compute_only_area_)
 static double log_sum(double a, double b) {
 	if (a < b)
 		std::swap(a, b);
-	return a + log(1 + exp(b - a));
+	return a + Math::log(1 + Math::exp(b - a));
 }
 
 static double log_diff(double a, double b) {
 	if (a < b)
 		throw std::runtime_error("Taking log of negative number.");
-	return a + log(1 - exp(b - a));
+	return a + Math::log(1 - Math::exp(b - a));
 }
 
 double pvalues::log_area(
@@ -631,18 +632,18 @@ double pvalues::log_area(
 	};
 
 
-	double log_P_m_F = log(0.5) + gsl_sf_log_erfc(-sqrt(0.5) * m_F);
+	double log_P_m_F = Math::log(0.5) + gsl_sf_log_erfc(-sqrt(0.5) * m_F);
 
-	double log_minus_E_m_F = log(const_val) + (-0.5*m_F*m_F);
-	double log_minus_sqrt_vi_y_E_m_F = log(sqrt_vi_y) + log_minus_E_m_F;
+	double log_minus_E_m_F = Math::log(const_val) + (-0.5*m_F*m_F);
+	double log_minus_sqrt_vi_y_E_m_F = Math::log(sqrt_vi_y) + log_minus_E_m_F;
 
 	double log_p1;
 	if (m_li_y < 0) {
-		double log_minus_m_li_y_P_m_F = log(-m_li_y) + log_P_m_F;		
+		double log_minus_m_li_y_P_m_F = Math::log(-m_li_y) + log_P_m_F;
 		log_p1 = log_diff(log_minus_sqrt_vi_y_E_m_F, log_minus_m_li_y_P_m_F);
 	}
 	else {
-		double log_m_li_y_P_m_F = log(m_li_y) + log_P_m_F;
+		double log_m_li_y_P_m_F = Math::log(m_li_y) + log_P_m_F;
 		log_p1 = log_sum(log_minus_sqrt_vi_y_E_m_F, log_m_li_y_P_m_F);
 	}
 
@@ -669,24 +670,24 @@ double pvalues::log_area(
 		n_F = n_lj_y / sqrt_vj_y;
 	};
 
-	double log_P_n_F = log(0.5) + gsl_sf_log_erfc(-sqrt(0.5) * n_F);
+	double log_P_n_F = Math::log(0.5) + gsl_sf_log_erfc(-sqrt(0.5) * n_F);
 
-	double log_minus_E_n_F = log(const_val) + (-0.5*n_F*n_F);
-	double log_minus_sqrt_vj_y_E_n_F = log(sqrt_vj_y) + log_minus_E_n_F;
+	double log_minus_E_n_F = Math::log(const_val) + (-0.5*n_F*n_F);
+	double log_minus_sqrt_vj_y_E_n_F = Math::log(sqrt_vj_y) + log_minus_E_n_F;
 	double log_p2;
 
 	if (n_lj_y < 0) {
-		double log_minus_n_lj_y_P_n_F = log(-n_lj_y) + log_P_n_F;		
+		double log_minus_n_lj_y_P_n_F = Math::log(-n_lj_y) + log_P_n_F;
 		log_p2 = log_diff(log_minus_sqrt_vj_y_E_n_F, log_minus_n_lj_y_P_n_F);
 	}
 	else {
-		double log_n_lj_y_P_n_F = log(n_lj_y) + log_P_n_F;
+		double log_n_lj_y_P_n_F = Math::log(n_lj_y) + log_P_n_F;
 		log_p2 = log_sum(log_minus_sqrt_vj_y_E_n_F, log_n_lj_y_P_n_F);
 	}
 
 	double log_c_y = 0;
 
-	log_c_y = log(alp_data::Tmax(par_.c_y_thr, sigma_hat_*y_ + tau_hat_));
+	log_c_y = Math::log(alp_data::Tmax(par_.c_y_thr, sigma_hat_*y_ + tau_hat_));
 
 	double log_P_m_F_P_n_F = log_P_m_F + log_P_n_F;
 
@@ -837,7 +838,7 @@ bool &area_is_1_flag_)
 
 		E_+=E_tmp;
 
-		double exp_E_tmp=exp(-E_tmp);
+		double exp_E_tmp=Math::exp(-E_tmp);
 		exp_E_values[i]=exp_E_tmp;
 		exp_E_values_aver+=exp_E_tmp;
 

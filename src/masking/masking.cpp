@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "blast/blast_filter.h"
 #include "data/sequence_set.h"
 #include "basic/config.h"
+#include "util/math/math.h"
 
 using std::unique_ptr;
 using std::atomic;
@@ -149,7 +150,7 @@ Masking::Masking(const ScoreMatrix& score_matrix)
 		mask_table_bit_[i] = (int8_t)i | bit_mask;
 		for (size_t j = 0; j < size; ++j)
 			if (i < n && j < n) {
-				likelihoodRatioMatrixf_[i][j] = (float)exp(lambda * score_matrix(i, j));
+				likelihoodRatioMatrixf_[i][j] = (float)Math::exp(lambda * score_matrix(i, j));
 			}
 	}
 	std::copy(likelihoodRatioMatrixf_, likelihoodRatioMatrixf_ + size, probMatrixPointersf_);

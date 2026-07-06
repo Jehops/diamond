@@ -35,12 +35,13 @@ Contents: Calculation of Gumbel parameters
 
 
 #include "sls_alp_sim.hpp"
+#include "util/math/math.h"
 
 using namespace Sls;
 using namespace std;
 
 static bool calculate_C_S_constant_flag=true;
-static double dbl_max_log=log(DBL_MAX);
+static double dbl_max_log=Math::log(DBL_MAX);
 
 alp_sim::alp_sim(//constructor
 alp_data *alp_data_)
@@ -2214,7 +2215,7 @@ double max_time_)
 	{
 		throw error("Error - you have exceeded the calculation time or memory limit.\nThe error might indicate that the regime is linear or too close to linear to permit efficient computation.\nPossible solutions include changing the randomization seed, or increasing the allowed calculation time and the memory limit.\n",3);
 	};
-	long int score_diff=(long int)alp_data::round(-log(p_thres)/lambda_ungapped);
+	long int score_diff=(long int)alp_data::round(-Math::log(p_thres)/lambda_ungapped);
 
 	long int i;
 
@@ -2918,7 +2919,7 @@ double &alpha_J_error_)
 			double tmp=(double)i*lambda_;
 			if(tmp<dbl_max_log)
 			{
-				exp_array[i]=exp(tmp);
+				exp_array[i]=Math::exp(tmp);
 			}
 			else
 			{
@@ -3695,11 +3696,11 @@ double &Sc_error_)
 			long int i;
 			for(i=0;i<=tmp->d_dim;i++)
 			{
-				double tmp_double=exp(lambda_*(double)i);
+				double tmp_double=Math::exp(lambda_*(double)i);
 				E[j]+=tmp_double*tmp->d_elem[i];
 				E_errors[j]+=tmp_double*tmp_double*tmp_errors->d_elem[i];
 
-				tmp_double=(double)i*exp(lambda_*(double)i);
+				tmp_double=(double)i*Math::exp(lambda_*(double)i);
 				E_T_beta[j]+=tmp_double*tmp->d_elem[i];
 				E_T_beta_errors[j]+=tmp_double*tmp_double*tmp_errors->d_elem[i];
 			};
@@ -3800,12 +3801,12 @@ double &Sc_error_)
 
 
 
-		double exp_lambda_error=exp(-lambda_)*lambda_error_;
-		double exp_lambda=(1-exp(-lambda_));
+		double exp_lambda_error=Math::exp(-lambda_)*lambda_error_;
+		double exp_lambda=(1-Math::exp(-lambda_));
 
 		
 		double den_error=alp_data::error_of_the_product(E_T_beta_diff_aver,E_T_beta_diff_aver_error,exp_lambda,exp_lambda_error);
-		double den=(1-exp(-lambda_))*E_T_beta_diff_aver;
+		double den=(1-Math::exp(-lambda_))*E_T_beta_diff_aver;
 
 
 		double nom;
@@ -4058,7 +4059,7 @@ long int &M_min_)
 		double den=0;
 		for(i=0;i<=diff->d_dim;i++)
 		{
-			den+=exp(-lambda_*(double)i)*diff->d_elem[i];
+			den+=Math::exp(-lambda_*(double)i)*diff->d_elem[i];
 		};
 
 
@@ -4071,12 +4072,12 @@ long int &M_min_)
 		M_aver/=sum_of_weights;
 
 
-		double delta_val=den*eps_K_*(1-exp(-lambda_));
+		double delta_val=den*eps_K_*(1-Math::exp(-lambda_));
 
 		long int diff_opt=1;;
 		for(i=diff->d_dim;i>=0;i--)
 		{
-			if(exp(-lambda_*(double)i)*diff->d_elem[i]>delta_val)
+			if(Math::exp(-lambda_*(double)i)*diff->d_elem[i]>delta_val)
 			{
 				diff_opt=i+1;
 				break;
@@ -4187,7 +4188,7 @@ double &K_C_error_)
 		double den_error=0;
 		for(i=0;i<=diff->d_dim;i++)
 		{
-			double tmp=exp(-lambda_*(double)i);
+			double tmp=Math::exp(-lambda_*(double)i);
 			den+=tmp*diff->d_elem[i];
 			den_error+=tmp*tmp*diff_error->d_elem[i];
 
@@ -4211,12 +4212,12 @@ double &K_C_error_)
 		M_aver/=sum_of_weights;
 
 
-		double delta_val=den*eps_K_*(1-exp(-lambda_));
+		double delta_val=den*eps_K_*(1-Math::exp(-lambda_));
 
 		long int diff_opt=1;;
 		for(i=diff->d_dim;i>=0;i--)
 		{
-			if(exp(-lambda_*(double)i)*diff->d_elem[i]>delta_val)
+			if(Math::exp(-lambda_*(double)i)*diff->d_elem[i]>delta_val)
 			{
 				diff_opt=i+1;
 				break;
@@ -4440,7 +4441,7 @@ void * data_)
 				{
 					continue;
 				};
-				double exp_tmp=exp(lambda_*j);
+				double exp_tmp=Math::exp(lambda_*j);
 				val+=exp_tmp*tmp->d_elem[j];
 				val_error+=exp_tmp*exp_tmp*tmp_errors->d_elem[j];
 			};

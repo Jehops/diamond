@@ -41,6 +41,7 @@
 #include "blast_seg.h"
 #include "blast_filter.h"
 #include "ncbi_math.h"
+#include "util/math/math.h"
 
 //#include <algo/blast/core/blast_filter.h>
 
@@ -1599,7 +1600,7 @@ s_Entropy(int32_t* sv)
    ent = 0.0;
    for (i=0; sv[i]!=0; i++)
      {
-      ent += ((double)sv[i])*log(((double)sv[i])/(double)total)/NCBIMATH_LN2;
+      ent += ((double)sv[i])*Math::log(((double)sv[i])/(double)total)/NCBIMATH_LN2;
      }
 
    ent = fabs(ent/(double)total);
@@ -1834,7 +1835,7 @@ static double
 s_lnfact(uint32_t n) {
   if (n < sizeof(lnfact)/sizeof(*lnfact))
      return lnfact[n];
-  else return ((n+0.5)*log(n) - n + 0.9189385332);
+  else return ((n+0.5)*Math::log(n) - n + 0.9189385332);
 }
 
 /** calculate "K2" entropy per equation 3 of Wootton and Federhen

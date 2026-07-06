@@ -38,6 +38,7 @@ Contents: library functions of main routines
 
 #include "sls_pvalues.hpp"
 #include <math.h>
+#include "util/math/math.h"
 
 namespace Sls {
 	const double default_importance_sampling_temperature = 1.07;
@@ -157,12 +158,12 @@ namespace Sls {
 
 	double evaluePerArea(double score_) const
 	{
-	  return d_params.K*exp(-d_params.lambda*score_);
+	  return d_params.K*Math::exp(-d_params.lambda*score_);
 	}
 
 	double bitScore(double score_) const
 	{
-		return (d_params.lambda*score_-log(d_params.K))/log(2.0);
+		return (d_params.lambda*score_-Math::log(d_params.K))/Math::log(2.0);
 	}
 
 	//returns "true" if the set of parameters "d_params" is fully defined for P-value calculation

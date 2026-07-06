@@ -27,6 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "sparse_matrix_stream.h"
 #include "../util/util.h"
 #include "../util/sequence/sequence.h"
+#include "../util/math/math.h"
 
 #define MASK_INVERSE        0xC000000000000000
 #define MASK_NORMAL_NODE    0x4000000000000000
@@ -172,7 +173,7 @@ void MCL::print_stats(int64_t nElements, int64_t nComponents, int64_t nComponent
 	message_stream << "\tmin. : " << setw(12) << neighbors[nComponentsLt1-1] << " - at min. size: " << setw(12) << neighbors_of_min << endl;
 	message_stream << "Rough memory requirements: ";
 	string uints[] = {"", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
-	uint32_t idx = ((uint32_t)log(mem_req)/log(1024));
+	uint32_t idx = ((uint32_t)Math::log(mem_req)/Math::log(1024));
 	message_stream << setprecision(2) << mem_req/pow(1024,idx) << uints[idx] << endl;
 	ms->release_read_buffer();
 }

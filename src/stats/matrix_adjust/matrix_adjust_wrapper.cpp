@@ -46,6 +46,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "linear_algebra_ncbi.h"
 #include "../cbs.h"
 #include "../stats.h"
+#include "util/math/math.h"
 
 using std::vector;
 using std::array;
@@ -362,10 +363,10 @@ Blast_GetRelativeEntropy(const double A[], const double B[])
         temp = (A[i] + B[i]) / 2;
         if (temp > 0) {
             if (A[i] > 0) {
-                value += A[i] * log(A[i] / temp) / 2;
+                value += A[i] * Math::log(A[i] / temp) / 2;
             }
             if (B[i] > 0) {
-                value += B[i] * log(B[i] / temp) / 2;
+                value += B[i] * Math::log(B[i] / temp) / 2;
             }
         }
     }

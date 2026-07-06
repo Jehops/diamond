@@ -232,7 +232,7 @@ double ScoreMatrix::bitscore_corrected(int raw_score, unsigned query_len, unsign
 {
 	//const double area = evaluer.area(raw_score, query_len, subject_len);
 	const double log_area = evaluer.log_area(raw_score, query_len, subject_len);
-	return (evaluer.parameters().lambda * raw_score - log(evaluer.parameters().K) - log_area) / log(2.0);
+	return (evaluer.parameters().lambda * raw_score - Math::log(evaluer.parameters().K) - log_area) / Math::log(2.0);
 }
 
 bool ScoreMatrix::report_cutoff(int score, double evalue) const {

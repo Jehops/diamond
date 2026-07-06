@@ -35,6 +35,7 @@ Contents: Ascending ladder points simulation
 
 
 #include "sls_alp.hpp"
+#include "util/math/math.h"
 
 using namespace Sls;
 
@@ -1046,7 +1047,7 @@ double n_)
 		};
 	};
 
-	return exp(n_*log(x_));
+	return Math::exp(n_*Math::log(x_));
 
 }
 

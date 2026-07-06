@@ -274,7 +274,7 @@ Reduction::Reduction(const char* definition_string)
 	map_[(long)STOP_LETTER] = MASK_LETTER;
 	const vector<string> tokens(Util::String::tokenize(definition_string, " "));
 	size_ = (unsigned)tokens.size();
-	bit_size_exact_ = log(size_) / log(2);
+	bit_size_exact_ = Math::log(size_) / Math::log(2);
 	bit_size_ = (int)ceil(bit_size_exact_);
 	freq_.fill(0.0);
 	for (unsigned i = 0; i < size_; ++i)

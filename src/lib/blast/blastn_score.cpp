@@ -6,6 +6,7 @@
 #include "ncbi_std.h"
 #include "blast_options.h"
 #include "ncbi_math.h"
+#include "util/math/math.h"
 
 
 
@@ -206,7 +207,7 @@ BlastKarlinEtoS_simple(double E, /* Expect value */
 
     E = MAX(E, kSmallFloat);
 
-    S = (Int4) (ceil( log((double)(K * searchsp / E)) / Lambda ));
+    S = (Int4) (ceil( Math::log((double)(K * searchsp / E)) / Lambda ));
     return S;
 }
 
@@ -224,7 +225,7 @@ BLAST_KarlinStoE_simple(Int4 S,
         return -1.;
     }
 
-    return (double) searchsp * exp((double)(-Lambda * S) + kbp->logK);
+    return (double) searchsp * Math::exp((double)(-Lambda * S) + kbp->logK);
 
 
 
@@ -627,7 +628,7 @@ BlastScoreBlkNucleotideMatrixRead(BlastScoreBlk* sbp, FILE *fp)
                 if ( freqs[i] && freqs[j] )
                 {
                     sum += freqs[i] * freqs[j] *
-                           exp( lambda * matrix[i][j] );
+                           Math::exp( lambda * matrix[i][j] );
                     check += freqs[i] * freqs[j];
                 }
             }
@@ -652,7 +653,7 @@ BlastScoreBlkNucleotideMatrixRead(BlastScoreBlk* sbp, FILE *fp)
                 if ( freqs[i] && freqs[j] )
                 {
                     sum += freqs[i] * freqs[j] *
-                           exp( lambda * matrix[i][j] );
+                           Math::exp( lambda * matrix[i][j] );
                     check += freqs[i] * freqs[j];
                 }
             }
@@ -1424,7 +1425,7 @@ BlastKarlinLHtoK(Blast_ScoreFreq* sfp, double lambda, double H)
     range = high - low;
 
     firstTermClosedForm = H/lambda;
-    expMinusLambda      = exp((double) -lambda);
+    expMinusLambda      = Math::exp((double) -lambda);
 
     if (low == -1 && high == 1) {
         K = (sfp->sprob[low*divisor] - sfp->sprob[high*divisor]) *
@@ -1522,7 +1523,7 @@ BlastKarlinLHtoK(Blast_ScoreFreq* sfp, double lambda, double H)
     }
 #endif
 
-    K = -exp((double)-2.0*outerSum) /
+    K = -Math::exp((double)-2.0*outerSum) /
         (firstTermClosedForm*BLAST_Expm1(-(double)lambda));
 
     if (alignmentScoreProbabilities != NULL)
@@ -1550,7 +1551,7 @@ double BLAST_Expm1(double	x)
     double	absx = ABS(x);
 
     if (absx > .33)
-        return exp(x) - 1.;
+        return Math::exp(x) - 1.;
 
     if (absx < 1.e-16)
         return x;
@@ -1813,7 +1814,7 @@ BlastKarlinLtoH(Blast_ScoreFreq* sfp, double lambda)
     }
     if (BlastScoreChk(low, high) != 0) return -1.;
 
-    etonlam = exp( - lambda );
+    etonlam = Math::exp( - lambda );
     sum = low * probs[low];
     for( score = low + 1; score <= high; score++ ) {
         sum = score * probs[score] + etonlam * sum;
@@ -1822,8 +1823,8 @@ BlastKarlinLtoH(Blast_ScoreFreq* sfp, double lambda)
     scale = BLAST_Powi( etonlam, high );
     if( scale > 0.0 ) {
         H = lambda * sum/scale;
-    } else { /* Underflow of exp( -lambda * high ) */
-        H = lambda * exp( lambda * high + log(sum) );
+    } else { /* Underflow of Math::exp( -lambda * high ) */
+        H = lambda * Math::exp( lambda * high + Math::log(sum) );
     }
     return H;
 }
@@ -1869,7 +1870,7 @@ Blast_KarlinBlkNuclGappedCalc(Blast_KarlinBlk* kbp, Int4 gap_open,
     {
         kbp->Lambda = linear[0][kLambdaIndex];
         kbp->K = linear[0][kKIndex];
-        kbp->logK = log(kbp->K);
+        kbp->logK = Math::log(kbp->K);
         kbp->H = linear[0][kHIndex];
     }
     else
@@ -1880,7 +1881,7 @@ Blast_KarlinBlkNuclGappedCalc(Blast_KarlinBlk* kbp, Int4 gap_open,
                 normal[index][kGapExtIndex] == gap_extend) {
                 kbp->Lambda = normal[index][kLambdaIndex];
                 kbp->K = normal[index][kKIndex];
-                kbp->logK = log(kbp->K);
+                kbp->logK = Math::log(kbp->K);
                 kbp->H = normal[index][kHIndex];
                 break;
             }
@@ -2163,7 +2164,7 @@ NlmKarlinLambdaNR(double* probs, Int4 d, Int4 low, Int4 high, double lambda0,
 
     assert( d > 0 );
 
-    x0 = exp( -lambda0 );
+    x0 = Math::exp( -lambda0 );
     x = ( 0 < x0 && x0 < 1 ) ? x0 : .5;
 
     for( k = 0; k < itmax; k++ ) { /* all iteration indices k */
@@ -2224,7 +2225,7 @@ NlmKarlinLambdaNR(double* probs, Int4 d, Int4 low, Int4 high, double lambda0,
         } /* else try a Newton step. */
     } /* end for all iteration indices k */
     *itn = k;
-    return -log(x)/d;
+    return -Math::log(x)/d;
 }
 
 double
@@ -2288,7 +2289,7 @@ Blast_KarlinBlkUngappedCalc(Blast_KarlinBlk* kbp, Blast_ScoreFreq* sfp)
     kbp->K = BlastKarlinLHtoK(sfp, kbp->Lambda, kbp->H);
     if (kbp->K < 0.)
         goto ErrExit;
-    kbp->logK = log(kbp->K);
+    kbp->logK = Math::log(kbp->K);
 
     /* Normal return */
     return 0;

@@ -1,6 +1,7 @@
 #pragma once
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include "util/math/math.h"
 
 #define GSL_DBL_EPSILON        2.2204460492503131e-16
 #define GSL_ROOT6_DBL_EPSILON  2.4607833005759251e-03
@@ -289,7 +290,7 @@ static double erfc8(double x)
 {
     double e;
     e = erfc8_sum(x);
-    e *= exp(-x * x);
+    e *= Math::exp(-x * x);
     return e;
 }
 
@@ -298,7 +299,7 @@ static double log_erfc8(double x)
 {
     double e;
     e = erfc8_sum(x);
-    e = log(e) - x * x;
+    e = Math::log(e) - x * x;
     return e;
 }
 
@@ -317,7 +318,7 @@ int gsl_sf_erfc_e(double x, gsl_sf_result* result)
         e_err = c.err;
     }
     else if (ax <= 5.0) {
-        double ex2 = exp(-x * x);
+        double ex2 = Math::exp(-x * x);
         double t = 0.5 * (ax - 3.0);
         gsl_sf_result c;
         cheb_eval_e(&erfc_x15_cs, t, &c);
@@ -325,7 +326,7 @@ int gsl_sf_erfc_e(double x, gsl_sf_result* result)
         e_err = ex2 * (c.err + 2.0 * fabs(x) * GSL_DBL_EPSILON);
     }
     else if (ax < 10.0) {
-        double exterm = exp(-x * x) / ax;
+        double exterm = Math::exp(-x * x) / ax;
         double t = (2.0 * ax - 15.0) / 5.0;
         gsl_sf_result c;
         cheb_eval_e(&erfc_x510_cs, t, &c);
@@ -394,7 +395,7 @@ inline int gsl_sf_log_erfc_e(double x, gsl_sf_result* result)
     else {
         gsl_sf_result result_erfc;
         gsl_sf_erfc_e(x, &result_erfc);
-        result->val = log(result_erfc.val);
+        result->val = Math::log(result_erfc.val);
         result->err = fabs(result_erfc.err / result_erfc.val);
         result->err += 2.0 * GSL_DBL_EPSILON * fabs(result->val);
         return GSL_SUCCESS;

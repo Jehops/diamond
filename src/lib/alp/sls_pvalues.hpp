@@ -44,6 +44,7 @@ Contents: P-values calculation routines
 #include <cstdlib>
 
 #include <cmath>
+#include "util/math/math.h"
 // #include <iostream>
 
 namespace Sls {
@@ -264,7 +265,7 @@ namespace Sls {
 			return rand_C;	
 		};
 
-		static inline double standard_normal()//generates standard normal random value using the Box–Muller transform
+		static inline double standard_normal()//generates standard normal random value using the Boxï¿½Muller transform
 		{
 			double r1=0;
 			while(r1==0)
@@ -277,7 +278,7 @@ namespace Sls {
 				r2=ran3();
 			};
 
-			double v1=-2*log(r1);
+			double v1=-2*Math::log(r1);
 			if(v1<0)
 			{
 				v1=0;

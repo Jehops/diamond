@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "../lib/blast/blast_stat.h"
 #include "../lib/blast/blast_encoding.h"
 #include "../lib/blast/blast_setup.h"
+#include "util/math/math.h"
 #include "build_score.h"
 
 namespace Stats {
@@ -105,7 +106,7 @@ double Blastn_Score::calculate_length_adjustment(uint64_t length, int query_leng
 }
 
 double Blastn_Score::expected_hsp_value(int query_length, uint64_t target_length) const {
-	return (log(kbp->K * query_length * (double)target_length) / kbp->H);
+	return (Math::log(kbp->K * query_length * (double)target_length) / kbp->H);
 }
 
 Blastn_Score::~Blastn_Score() {

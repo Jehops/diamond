@@ -36,6 +36,7 @@ Contents:
 
 ******************************************************************************/
 #include "njn_doubletype.hpp"
+#include "util/math/math.h"
 
 
 namespace Njn {
@@ -83,10 +84,10 @@ namespace Njn {
       template <typename T> T hartleysToBits (T x_) {return hartleysToNats (natsToBits (x_));}
       template <typename T> T bitsToHartleys (T x_) {return bitsToNats (natsToHartleys (x_));}
 
-      template <typename T> T exp2 (T x_) {return exp (DoubleType::LN_2 * (x_));}
-      template <typename T> T log2 (T x_) {return log (x_) / DoubleType::LN_2;}
-      template <typename T> T exp10 (T x_) {return exp (DoubleType::LN_10 * (x_));}
-      template <typename T> T log10 (T x_) {return log (x_) / DoubleType::LN_10;}
+      template <typename T> T exp2 (T x_) {return Math::exp(DoubleType::LN_2 * (x_));}
+      template <typename T> T log2 (T x_) {return Math::log(x_) / DoubleType::LN_2;}
+      template <typename T> T exp10 (T x_) {return Math::exp(DoubleType::LN_10 * (x_));}
+      template <typename T> T log10 (T x_) {return Math::log(x_) / DoubleType::LN_10;}
 
       template <typename T> T max (T x_, T y_) {return x_ > y_ ? x_ : y_;}
       template <typename T> T max3 (T a_, T b_, T c_) {return max <T> (a_, max <T> (b_, c_));}

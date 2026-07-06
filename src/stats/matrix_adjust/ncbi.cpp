@@ -85,6 +85,7 @@
 
 #include <string.h>
 #include "linear_algebra_ncbi.h"
+#include "util/math/math.h"
 
 namespace Stats {
 
@@ -645,7 +646,7 @@ EvaluateReFunctions(double values[], double** grads, int alphsize,
 
     values[0] = 0.0; values[1] = 0.0;
     for (k = 0; k < alphsize * alphsize; k++) {
-        temp = log(x[k] / q[k]);
+        temp = Math::log(x[k] / q[k]);
 
         values[0] += x[k] * temp;
         grads[0][k] = temp + 1;
@@ -688,7 +689,7 @@ ComputeScoresFromProbs(double scores[],
         for (j = 0; j < alphsize; j++) {
             k = i * alphsize + j;
 
-            scores[k] = log(target_freqs[k] / (row_freqs[i] * col_freqs[j]));
+            scores[k] = Math::log(target_freqs[k] / (row_freqs[i] * col_freqs[j]));
         }
     }
 }

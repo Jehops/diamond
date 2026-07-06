@@ -38,6 +38,7 @@ Contents: Input data for the ascending ladder points simulation
 #include <iostream>
 #include <errno.h>
 #include "sls_alp_data.hpp"
+#include "util/math/math.h"
 
 using std::string;
 using std::ifstream;
@@ -808,7 +809,7 @@ double importance_sampling::lambda_equation(double x_,void* func_number_)
 	{
 		for(j=0;j<d_number_of_AA;j++)
 		{
-			res+=d_RR1[i]*d_RR2[j]*exp(x_*d_smatr[i][j]);
+			res+=d_RR1[i]*d_RR2[j]*Math::exp(x_*d_smatr[i][j]);
 		};
 	};
 
@@ -899,8 +900,8 @@ string RR_file_name_)
 	double diff_tmp=fabs(sum_tmp_-1.0);
 	if(diff_tmp>0)
 	{
-		double lg_diff=-(log(diff_tmp)-log((double)number_of_AA_RR_))/log(10.0);
-		double lg_eps=-log(DBL_EPSILON)/log(10.0)-1;
+		double lg_diff=-(Math::log(diff_tmp)-Math::log((double)number_of_AA_RR_))/Math::log(10.0);
+		double lg_eps=-Math::log(DBL_EPSILON)/Math::log(10.0)-1;
 		if(lg_diff<lg_eps)
 		{
 
@@ -1259,7 +1260,7 @@ double *RR2_)
 
 
 			double tmp_pr=RR1_[smatr_max_i]*RR2_[smatr_max_j];
-			double b=(log(1+10*eps)-log(tmp_pr))/(double)smatr_max;
+			double b=(Math::log(1+10*eps)-Math::log(tmp_pr))/(double)smatr_max;
 
 			
 			long int n_partition=2;
@@ -1312,7 +1313,7 @@ double *RR2_)
 		{
 			for(b=0;b<number_of_AA_;b++)
 			{
-				d_exp_s[a][b]=exp(d_lambda*smatr_[a][b]);
+				d_exp_s[a][b]=Math::exp(d_lambda*smatr_[a][b]);
 				d_elements_values[ind]=RR1_[a]*RR2_[b]*d_exp_s[a][b];
 				sum+=d_elements_values[ind];
 				ind++;
@@ -1362,8 +1363,8 @@ double *RR2_)
 
 
 
-		d_mu=exp(-fabs(d_lambda)*open_);
-		d_nu=exp(-fabs(d_lambda)*epen_);
+		d_mu=Math::exp(-fabs(d_lambda)*open_);
+		d_nu=Math::exp(-fabs(d_lambda)*epen_);
 
 		double tmp=1+d_mu-d_nu;
 
@@ -1516,7 +1517,7 @@ double v1_error_)
 		return 1e100;
 	};
 
-	return alp_data::Tmin(fabs(log(v1_)/log(10.0)),v1_error_/v1_/log(10.0));
+	return alp_data::Tmin(fabs(Math::log(v1_)/Math::log(10.0)),v1_error_/v1_/Math::log(10.0));
 }
 
 bool alp_data::the_value_is_double(

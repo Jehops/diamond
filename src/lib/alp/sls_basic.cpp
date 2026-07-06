@@ -38,6 +38,7 @@ Contents: Some basic functions and types
 #define _DEFAULT_SOURCE 1
 
 #include "sls_basic.hpp"
+#include "util/math/math.h"
 #include <cstdlib>  // std::abs
 #include <ctime>
 
@@ -96,7 +97,7 @@ double y_)
 {
 	if(fabs(y_)>1e-3)
 	{
-		return 1.0-exp(y_);
+		return 1.0-Math::exp(y_);
 	}
 	else
 	{
@@ -117,19 +118,19 @@ double eps_)
 
 	eps_=Tmin(1.0,eps_);
 
-	double x_max=10*eps_+sqrt(Tmax(0.0,-2*log(eps_)));
+	double x_max=10*eps_+sqrt(Tmax(0.0,-2*Math::log(eps_)));
 
 
 	if(x_>=x_max)
 	{
 		double x=x_/sqrt(2.0);
-		return 1-0.5*exp(-x*x)/(x*sqrt(pi))*(1-1.0/(2*x*2*x));
+		return 1-0.5*Math::exp(-x*x)/(x*sqrt(pi))*(1-1.0/(2*x*2*x));
 	};
 
 	if(x_<=-x_max)
 	{
 		double x=x_/sqrt(2.0);
-		return 0.5*exp(-x*x)/(-x*sqrt(pi))*(1-1.0/(2*x*2*x));
+		return 0.5*Math::exp(-x*x)/(-x*sqrt(pi))*(1-1.0/(2*x*2*x));
 	};
 
 
@@ -148,7 +149,7 @@ double eps_)
 	for(i=0;i<=N;i++)
 	{
 		double y=h*i;
-		double tmp=exp(-0.5*y*y);
+		double tmp=Math::exp(-0.5*y*y);
 		if(i==0||i==N)
 		{
 			res+=0.5*tmp;
@@ -188,7 +189,7 @@ double val_)
 {
 	if(val_>1e-8)
 	{
-		return log(1-val_);
+		return Math::log(1-val_);
 	};
 
 	return -val_-val_*val_/2.0-val_*val_*val_/3.0;

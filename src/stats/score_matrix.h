@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/value.h"
 #include "alp/sls_alignment_evaluer.hpp"
 #include "stats/standard_matrix.h"
+#include "util/math/math.h"
 
 const double LN_2 = 0.69314718055994530941723212145818;
 
@@ -147,7 +148,7 @@ struct ScoreMatrix
 
 	double bitscore_norm(double evalue, unsigned query_len) const
 	{
-		return -log(evalue / 1e9 / query_len) / log(2);
+		return -Math::log(evalue / 1e9 / query_len) / Math::log(2);
 	}
 
 	double lambda() const

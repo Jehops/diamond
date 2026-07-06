@@ -42,6 +42,7 @@ Contents:
 #include "njn_root.hpp"
 
 #include "sls_basic.hpp"
+#include "util/math/math.h"
 
 using namespace Njn;
 
@@ -184,7 +185,7 @@ const double *q_) // q_ [0...dimension_) : distribution of independent letters
    {
       double sum = 0.0;
       for (size_t i = 0; i < n_dimension; i++) {
-         sum += n_prob [i] * exp (x_ * static_cast <double> (n_score [i]));
+         sum += n_prob [i] * Math::exp(x_ * static_cast <double> (n_score [i]));
       }
       return sum;
    }
@@ -194,7 +195,7 @@ const double *q_) // q_ [0...dimension_) : distribution of independent letters
       double sum = 0.0;
       for (size_t i = 0; i < n_dimension; i++) {
           sum += Integer::integerPower (static_cast <double> (n_score [i]), power_) * 
-            n_prob [i] * exp (x_ * static_cast <double> (n_score [i]));
+            n_prob [i] * Math::exp(x_ * static_cast <double> (n_score [i]));
       }
       return sum;
    }
@@ -207,7 +208,7 @@ const double *q_) // q_ [0...dimension_) : distribution of independent letters
    void n_bracket (double *p_, double *q_)
    {
       const double FACTOR = 0.5;
-      *p_ = -log (n_prob [n_dimension - 1]) / static_cast <double> (n_score [n_dimension - 1]);
+      *p_ = -Math::log (n_prob [n_dimension - 1]) / static_cast <double> (n_score [n_dimension - 1]);
       while (1.0 <= n_totalProbAssoc (*p_)) {
          *p_ *= FACTOR;
       }
@@ -306,7 +307,7 @@ double theta_) // argument of rate
 {
    double sum = 0.0;
    for (size_t i = 0; i < dimension_; i++) {
-      sum += prob_ [i] * exp (theta_ * static_cast <double> (score_ [i]));
+      sum += prob_ [i] * Math::exp(theta_ * static_cast <double> (score_ [i]));
    }
    return sum;
 }
@@ -330,7 +331,7 @@ size_t dimension_, // #(distinct values) of scores & probabilities (which are pa
 const long int *score_) // scores 
 {
    double del = static_cast <double> (delta (dimension_, score_));
-   return (1.0 - exp (-lambda_ * del)) / del;
+   return (1.0 - Math::exp(-lambda_ * del)) / del;
 } 
 
 
@@ -393,11 +394,11 @@ bool *terminated_) // ? Was the dynamic programming computation terminated prema
     double rMin0 = 0.0 == rMin0_ ? rMin (dimension_, score_, prob_, lambda0, thetaMin0) : rMin0_;
     assert (0.0 < rMin0 && rMin0 < 1.0);
 
-    const long int ITER_MIN = static_cast <long int> ((log (REL_TOL * (1.0 - rMin0)) / log (rMin0)));
+    const long int ITER_MIN = static_cast <long int> ((Math::log(REL_TOL * (1.0 - rMin0)) / Math::log(rMin0)));
     assert (0 < ITER_MIN);
     const long int ITER = static_cast <long int> (endW_) < ITER_MIN ? ITER_MIN : static_cast <long int> (endW_);
     assert (0 < ITER);
-    const long int Y_MAX = static_cast <long int> (-log (REL_TOL) / lambda0);
+    const long int Y_MAX = static_cast <long int> (-Math::log(REL_TOL) / lambda0);
 
     long int entry = isStrict_ ? -1 : 0;
     n_setParameters (dimension_, score_, prob_, entry);
@@ -430,14 +431,14 @@ bool *terminated_) // ? Was the dynamic programming computation terminated prema
                 if (pAlphaW_) pAlphaW_ [w] += dynProgProb.getProb (value);
                 if (eOneMinusExpSumAlphaW_) eOneMinusExpSumAlphaW_ [w] += 
                                                dynProgProb.getProb (value) * 
-                                               (1.0 - exp (lambda_ * static_cast <double> (value)));
+                                               (1.0 - Math::exp(lambda_ * static_cast <double> (value)));
              }
         }
 
         for (value = score_ [0]; value <= entry; value++) {
          if (eSumAlpha_) *eSumAlpha_ += dynProgProb.getProb (value) * static_cast <double> (value);
          if (eOneMinusExpSumAlpha_) *eOneMinusExpSumAlpha_ += dynProgProb.getProb (value) * 
-                                        (1.0 - exp (lambda_ * static_cast <double> (value)));
+                                        (1.0 - Math::exp(lambda_ * static_cast <double> (value)));
         }
 
         dynProgProb.setValueFct (n_bury); 
@@ -461,7 +462,7 @@ bool *terminated_) // ? Was the dynamic programming computation terminated prema
     for (value = score_ [0]; value <= entry; value++) {
       if (eSumAlpha_) *eSumAlpha_ += dynProgProb.getProb (value) * static_cast <double> (value);
       if (eOneMinusExpSumAlpha_) *eOneMinusExpSumAlpha_ += dynProgProb.getProb (value) * 
-                                     (1.0 - exp (lambda_ * static_cast <double> (value)));
+                                     (1.0 - Math::exp(lambda_ * static_cast <double> (value)));
     }
 
     // check that not too much probability has been omitted
