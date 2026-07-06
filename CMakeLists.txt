@@ -168,7 +168,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
   add_definitions(-D_HAS_STD_BYTE=0)
   add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-implicit-fallthrough -Wreturn-type -Wno-unused -Wno-unused-parameter -Wno-unused-variable -Wno-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option ")#-g -fsanitize=address -fno-omit-frame-pointer ")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffp-contract=off -Wall -Wextra -Wno-implicit-fallthrough -Wreturn-type -Wno-unused -Wno-unused-parameter -Wno-unused-variable -Wno-uninitialized -Wno-deprecated-copy -Wno-unknown-warning-option ")#-g -fsanitize=address -fno-omit-frame-pointer ")
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
