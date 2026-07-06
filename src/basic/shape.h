@@ -154,6 +154,16 @@ struct Shape
 	inline bool set_seed_reduced(PackedSeed& s, It seq) const
 	{
 		switch (weight_) {
+		case 2:
+			return set_seed_reduced<2>(s, seq);
+		case 3:
+			return set_seed_reduced<3>(s, seq);
+		case 4:
+			return set_seed_reduced<4>(s, seq);
+		case 5:
+			return set_seed_reduced<5>(s, seq);
+		case 6:
+			return set_seed_reduced<6>(s, seq);
 		case 7:
 			return set_seed_reduced<7>(s, seq);
 		case 8:
@@ -166,6 +176,8 @@ struct Shape
 			return set_seed_reduced<11>(s, seq);
 		case 12:
 			return set_seed_reduced<12>(s, seq);
+		default:
+			throw std::runtime_error("Seed of weight > 12 currently unsupported.");
 		}
 		UNREACHABLE;
 	}
