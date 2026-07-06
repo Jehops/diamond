@@ -56,6 +56,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "score_matrix.h"
 #include "cbs.h"
 #include "basic/config.h"
+#include "util/math/math.h"
 
 namespace Stats {
 
@@ -105,7 +106,7 @@ NlmKarlinLambdaNR(double* probs, int d, int low, int high, double lambda0,
 
     assert(d > 0);
 
-    x0 = exp(-lambda0);
+    x0 = Math::exp(-lambda0);
     x = (0 < x0 && x0 < 1) ? x0 : .5;
 
     for (k = 0; k < itmax; k++) { /* all iteration indices k */
@@ -170,7 +171,7 @@ NlmKarlinLambdaNR(double* probs, int d, int low, int high, double lambda0,
         } /* else try a Newton step. */
     } /* end for all iteration indices k */
     *itn = k;
-    return -log(x) / d;
+    return -Math::log(x) / d;
 }
 
 double
@@ -299,7 +300,7 @@ Blast_FreqRatioToScore(double** matrix, size_t rows, size_t cols, double Lambda)
                 matrix[i][j] = COMPO_SCORE_MIN;
             }
             else {
-            matrix[i][j] = log(matrix[i][j]) / Lambda;
+            matrix[i][j] = Math::log(matrix[i][j]) / Lambda;
             }
         }
     }
