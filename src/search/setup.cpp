@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/config.h"
 #include "search.h"
 #include "util/math/integer.h"
+#include "util/math/math.h"
 #include "masking/def.h"
 #include "basic/shape_config.h"
 #include "align/def.h"
@@ -367,7 +368,7 @@ void setup_search(Sensitivity sens, Search::Config& cfg)
 
 	config.gapped_filter_diag_score = score_matrix.rawscore(config.gapped_filter_diag_bit_score);
 	const double seed_cut = config.seed_cut_ == 0.0 ? traits.seed_cut : config.seed_cut_;
-	cfg.seed_complexity_cut = seed_cut * std::log(2.0) * ::shapes[0].weight_;
+	cfg.seed_complexity_cut = seed_cut * Math::log(2.0) * ::shapes[0].weight_;
 	cfg.soft_masking = soft_masking_algo(traits);
 	if (!config.soft_masking.empty())
 		cfg.soft_masking |= from_string<MaskingAlgo>(config.soft_masking);

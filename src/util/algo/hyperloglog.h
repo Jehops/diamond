@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdexcept>
 #include "../hash_function.h"
 #include "../intrin.h"
+#include "../math/math.h"
 
 struct HyperLogLog {
 
@@ -54,7 +55,7 @@ struct HyperLogLog {
         double e = alpha * m * m * z;
 
         if (e <= 2.5 * m && zeros > 0) {
-            e = m * std::log(static_cast<double>(m) / zeros);
+            e = m * Math::log(static_cast<double>(m) / zeros);
         }
 
         return (int64_t)std::round(e);

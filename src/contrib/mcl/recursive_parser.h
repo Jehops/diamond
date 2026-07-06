@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 #include "clustering_variables.h"
+#include "util/math/math.h"
 #include <cmath>
 #include <cstdlib>
 #include <functional>
@@ -137,13 +138,13 @@ class RecursiveParser {
 			advance(4); // 'exp('
 			double result1 = expression();
 			advance(1); // ')'
-			return std::exp(result1);
+			return Math::exp(result1);
 		}
 		else if (peek() == 'l' && peek(1)=='o' && peek(2)=='g' && peek(3)=='('){
 			advance(4); // 'log('
 			double result1 = expression();
 			advance(1); // ')'
-			return std::log(result1);
+			return Math::log(result1);
 		}
 		else if (peek() == 'I' && peek(1)=='('){
 			advance(2); // 'I('

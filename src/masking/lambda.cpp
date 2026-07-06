@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "util/math/math.h"
 
 class LambdaCalculator {
 public:
@@ -147,7 +148,7 @@ private:
         Mat M(n);
         for (int i = 0; i < n; ++i)
             for (int j = 0; j < n; ++j)
-                M.at(i, j) = std::exp(lambda * static_cast<double>(S[i][j]));
+                M.at(i, j) = Math::exp(lambda * static_cast<double>(S[i][j]));
         return M;
     }
 
@@ -327,10 +328,10 @@ private:
         const double N_eff_cols = static_cast<double>(n - lc);
 
         if (rMaxMin > cMaxMin) {
-            ub = 1.1 * std::log(N_eff_rows) / rMaxMin;
+            ub = 1.1 * Math::log(N_eff_rows) / rMaxMin;
         }
         else {
-            ub = 1.1 * std::log(N_eff_cols) / cMaxMin;
+            ub = 1.1 * Math::log(N_eff_cols) / cMaxMin;
         }
         return std::isfinite(ub) && ub > 0.0;
     }

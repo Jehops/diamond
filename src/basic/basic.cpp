@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "sequence.h"
 #include "stats/standard_matrix.h"
 #include "util/log_stream.h"
+#include "util/math/math.h"
 
 using std::string;
 using std::vector;
@@ -286,7 +287,7 @@ Reduction::Reduction(const char* definition_string)
 			freq_[i] += Stats::blosum62.background_freqs[letter];
 		}
 	for (double& f : freq_)
-		f = std::log(f);
+		f = Math::log(f);
 	map8_[(long)MASK_LETTER] = (Letter)size_;
 	map8_[(long)STOP_LETTER] = (Letter)size_;
 	map8_[(long)DELIMITER_LETTER] = (Letter)size_;

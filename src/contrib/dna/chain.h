@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ****/
 
 #include "seed_set_dna.h"
+#include "util/math/math.h"
 
 namespace Dna {
 
@@ -95,7 +96,7 @@ struct Chain {
 
     void computeMappingQuality(int scoreSecondaryChain) {
         double score_ratio = static_cast<double>(scoreSecondaryChain) / chain_score;
-        double quality_score = 40 * (1 - score_ratio) * std::min(1.0, static_cast<double>(anchors.size()) / 10) * std::log(chain_score);
+        double quality_score = 40 * (1 - score_ratio) * std::min(1.0, static_cast<double>(anchors.size()) / 10) * Math::log(chain_score);
         // compress to 0-60
         mapping_quality = static_cast<uint8_t>(quality_score * 60 / 312);
     }

@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "score_matrix.h"
 #include "basic/config.h"
 #include "stats/cbs.h"
+#include "util/math/math.h"
 
 using std::array;
 using std::string;
@@ -67,7 +68,7 @@ ScoreMatrix::ScoreMatrix(const string & matrix, int gap_open, int gap_extend, in
 	matrix16_(AMINO_ACID_COUNT, standard_matrix_->scores.data(), stop_match_score)
 {	
 	evaluer.initParameters(alp_params(standard_matrix_, gap_open_, gap_extend_));
-	ln_k_ = std::log(evaluer.parameters().K);
+	ln_k_ = Math::log(evaluer.parameters().K);
 	init_background_scores();
 }
 
@@ -186,7 +187,7 @@ ScoreMatrix::ScoreMatrix(const string& matrix_file, int gap_open, int gap_extend
 	catch (...) {
 		throw runtime_error("The ALP library failed to compute the statistical parameters for this matrix. It may help to adjust the gap penalty settings.");
 	}
-	ln_k_ = std::log(evaluer.parameters().K);
+	ln_k_ = Math::log(evaluer.parameters().K);
 	init_background_scores();
 }
 
@@ -196,7 +197,7 @@ Scores<T>::Scores(const double(&freq_ratios)[Stats::NCBI_ALPH][Stats::NCBI_ALPH]
 	for (size_t i = 0; i < 32; ++i)
 		for (size_t j = 0; j < 32; ++j) {
 			if (i < TRUE_AA && j < TRUE_AA)
-				data[i * 32 + j] = (T)std::round(std::log(freq_ratios[Stats::ALPH_TO_NCBI[i]][Stats::ALPH_TO_NCBI[j]]) / lambda * scale);
+				data[i * 32 + j] = (T)std::round(Math::log(freq_ratios[Stats::ALPH_TO_NCBI[i]][Stats::ALPH_TO_NCBI[j]]) / lambda * scale);
 			else if (i < n && j < n)
 				data[i * 32 + j] = (int)scores[i * n + j] * scale;
 			else

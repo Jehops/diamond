@@ -37,6 +37,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/shape.h"
 #include "output/output_format.h"
 #include "data/sequence_file.h"
+#include "util/math/math.h"
 
 using std::runtime_error;
 using std::thread;
@@ -455,7 +456,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("family-map", 0, "", family_map)
 		("family-map-query", 0, "", family_map_query)
 		("query-parallel-limit", 0, "", query_parallel_limit, 3000000u)
-		("log-evalue-scale", 0, "", log_evalue_scale, 1.0 / std::log(2.0))
+		("log-evalue-scale", 0, "", log_evalue_scale, 1.0 / Math::log(2.0))
 		("bootstrap", 0, "", bootstrap)
 		("heartbeat", 0, "", heartbeat)
 		("mp-self", 0, "", mp_self)
