@@ -56,6 +56,7 @@ using std::unordered_map;
 using std::map;
 using std::atomic;
 
+const uint64_t SequenceFile::DEFAULT_LOAD_SIZE = 4 * GIGABYTES;
 static constexpr int64_t CHECK_FOR_DNA_COUNT = 10;
 const char* const SequenceFile::SEQID_HDR = "seqid";
 const DictId SequenceFile::DICT_EMPTY = std::numeric_limits<DictId>::max();

@@ -79,7 +79,7 @@ int frame_mask();
 
 struct SequenceFile {
 
-	static const uint64_t DEFAULT_LOAD_SIZE = 4 * GIGABYTES;
+	static const uint64_t DEFAULT_LOAD_SIZE;
 
     enum class Type { DMND = 0, BLAST = 1, FASTA = 2, BLOCK = 3 };
 
