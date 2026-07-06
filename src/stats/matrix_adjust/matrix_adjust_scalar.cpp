@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/simd/dispatch.h"
 #include "basic/config.h"
 #include "../stats.h"
+#include "util/math/math.h"
 
 namespace Stats { namespace DISPATCH_ARCH {
 
@@ -61,8 +62,8 @@ static bool matrix_adjust_impl(const Float* q, const Float* P, const Float* Q, F
         for (int j = 0; j < N; ++j) {
             const int ij = i * STRIDE + j;
             const Float pq = P[i] * Q[j];
-            lnPQ[ij] = std::log(pq);
-            L[ij] = std::log(q[ij] / pq);
+            lnPQ[ij] = Math::log(pq);
+            L[ij] = Math::log(q[ij] / pq);
         }
 
     Float a[N], b[N];
@@ -80,7 +81,7 @@ static bool matrix_adjust_impl(const Float* q, const Float* P, const Float* Q, F
         for (int i = 0; i < N; ++i)
             for (int j = 0; j < N; ++j) {
                 const int ij = i * STRIDE + j;
-                k[ij] = std::exp(k[ij] - emax);
+                k[ij] = Math::exp(k[ij] - emax);
             }
         ras_balance<Float, STRIDE>(k, P, Q, a, b, x);
         Float re = 0.0;
@@ -88,7 +89,7 @@ static bool matrix_adjust_impl(const Float* q, const Float* P, const Float* Q, F
             for (int j = 0; j < N; ++j) {
                 const int ij = i * STRIDE + j;
                 const Float xij = x[ij];
-                if (xij > Float(0.0)) re += xij * (std::log(xij) - lnPQ[ij]);
+                if (xij > Float(0.0)) re += xij * (Math::log(xij) - lnPQ[ij]);
             }
         return re;
         };
