@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 #include <vector>
 #include <stdexcept>
+#include <cstdio>
 #include <zlib.h>
 #ifdef WITH_ZSTD
 #include <zstd.h>
@@ -40,7 +41,8 @@ struct Decompressor {
 	}
 	virtual CompressionLib lib() const = 0;
 	virtual int ungetc(int c, FILE* stream) = 0;
-	virtual void reset() = 0;
+	virtual void reset() = 0;	
+	virtual bool eof(FILE* stream) const = 0;
 };
 
 template<typename ReadByte>
@@ -99,6 +101,9 @@ struct PassThrough : Decompressor {
 		return std::ungetc(c, stream);
 	}
 	virtual void reset() override {}
+	virtual bool eof(FILE* stream) const override {
+		return std::feof(stream) != 0;
+	}
 };
 
 struct ZlibDecompressor : Decompressor {
@@ -111,6 +116,9 @@ struct ZlibDecompressor : Decompressor {
 	}
 	int ungetc(int c, FILE* stream) override;
 	virtual void reset() override;
+	virtual bool eof(FILE*) const override {
+		return eos_ && pushback_ == EOF;
+	}
 	~ZlibDecompressor();
 private:
 	static const size_t chunk_size = 1llu << 20;
@@ -132,6 +140,9 @@ struct ZstdDecompressor : Decompressor {
 	}
 	int ungetc(int c, FILE* stream) override;
 	virtual void reset() override;
+	virtual bool eof(FILE*) const override {
+		return eos_ && pushback_ == EOF;
+	}
 	~ZstdDecompressor();
 private:
 	static const size_t chunk_size = 1llu << 20;

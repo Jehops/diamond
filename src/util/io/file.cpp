@@ -387,7 +387,7 @@ uint64_t File::read_to_fasta_record_end(std::string& dst) {
 }
 
 bool File::eof() const {
-	return feof(file_) != 0;
+	return decompressor_->eof(file_);
 }
 
 string File::peek(int64_t n) {	
