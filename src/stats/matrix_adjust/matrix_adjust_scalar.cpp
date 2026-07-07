@@ -21,8 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <cmath>
 #include <limits>
 
-#pragma STDC FP_CONTRACT OFF
-
 #include "util/simd/dispatch.h"
 #include "basic/config.h"
 #include "../stats.h"

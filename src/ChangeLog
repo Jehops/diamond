@@ -5,6 +5,8 @@
   SEG masking corresponding to BLAST defaults.
 - Added the `--comp-based-stats 6` option to enable compositional matrix adjust using
   an optimized Sinkhorn–Knopp based algorithm.
+- Added the `--relative-entropy-tolerance` option to control the convergence tolerance of
+  the Sinkhorn–Knopp algorithm when using `--comp-based-stats 6`.
 - Added the option `--taxdump` to set search path for NCBI taxdump files other than the
   database directory.
 - Fixed a non-determinism in the greedy vertex cover workflow and transitively in the
@@ -13,13 +15,15 @@
 - Added the option `--masking seg-all` to apply SEG masking to both query and target
   sequences.
 - Fixed `--comp-based-stats 2-5` not correctly applying SEG masking of targets by default
-  instead of tantan masking as documented.
+  instead of tantan masking.
 - Added the option `--reps` to set output FASTA file for representative sequences for the
   clustering workflows (contributed by @bbuschkaemper).
 - Fixed a crash in the clustering workflows for large input files with high memory limit
   parameter (contributed by @bbuschkaemper).
 - Fixed a potential issue in the linear stages of the clustering workflows when using a
   very high memory limit parameter (contributed by @bbuschkaemper).
+- Fixed a bug that could cause an invalid error message or truncation when reading compressed
+  files (present since v2.2.2).
 - Added the option `--symmetrize-evalue` to maximize the evalue over both combinations
   of query and target.
 - Fixed asymmetry of evalues in clustering workflows.

@@ -21,8 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <cstring>
 
-#pragma STDC FP_CONTRACT OFF
-
 namespace Math {
 
 inline double from_bits(std::uint64_t b) {
