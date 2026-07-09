@@ -122,7 +122,7 @@ struct VolumedFile : public std::vector<Volume> {
 	void set_max_oid(OId max_oid) {
 		max_oid_ = max_oid;
 	}
-	std::pair<std::vector<Volume>::const_iterator, std::vector<Volume>::const_iterator> find(OId oid_begin, OId oid_end) const {
+	/*std::pair<std::vector<Volume>::const_iterator, std::vector<Volume>::const_iterator> find(OId oid_begin, OId oid_end) const {
 		auto it = std::lower_bound(begin(), end(), oid_begin);
 		if (it == end())
 			throw std::runtime_error("OID out of bounds");
@@ -130,18 +130,19 @@ struct VolumedFile : public std::vector<Volume> {
 		while (end < this->end() && end->oid_begin < oid_end)
 			++end;
 		return { it,end };
-	}
-	std::vector<Volume>::const_iterator find(OId oid) const {
+	}*/
+	/*std::vector<Volume>::const_iterator find(OId oid) const {
 		auto it = std::lower_bound(begin(), end(), oid);
 		if (it == end() || oid < it->oid_begin || oid >= it->oid_end)
 			throw std::runtime_error("OID out of bounds");
 		return it;
-	}
-	void remove(bool dir = true, bool files = true) const {
+	}*/
+	void remove(bool dir = true, bool files = true, bool list_file = true) const {
 		if (files)
 			for (const Volume& v : *this)
 				remove_tmp_file(v.path);
-		remove_tmp_file(list_file_);
+		if (list_file)
+			remove_tmp_file(list_file_);
 		if (dir)
 			rmdir(containing_directory(list_file_).c_str());
 	}
@@ -162,7 +163,7 @@ private:
 	uint64_t letter_count_;
 };
 
-inline Block* load_seqs(const VolumedFile& volumes, OId oid_begin, OId oid_end, const std::string& index_dir, SequenceFile::Flags flags = SequenceFile::Flags::ALL) {
+/*inline Block* load_seqs(const VolumedFile& volumes, OId oid_begin, OId oid_end, const std::string& index_dir, SequenceFile::Flags flags = SequenceFile::Flags::ALL) {
 	std::vector<Volume>::const_iterator vol_begin, vol_end;
 	std::tie(vol_begin, vol_end) = volumes.find(oid_begin, oid_end);
 	Block* combined = nullptr;
@@ -188,4 +189,4 @@ inline Block* load_seqs(const VolumedFile& volumes, OId oid_begin, OId oid_end, 
 	if (!combined)
 		combined = new Block();
 	return combined;
-}
+}*/

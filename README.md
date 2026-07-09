@@ -19,7 +19,6 @@ features are:
     as well as taxonomic classification.
 
 [![Build](https://github.com/bbuchfink/diamond/actions/workflows/cmake.yml/badge.svg)](https://github.com/bbuchfink/diamond/actions/workflows/cmake.yml)
-[![image](https://img.shields.io/cirrus/github/bbuchfink/diamond)](https://cirrus-ci.com/github/bbuchfink/diamond/master)
 [![image](https://img.shields.io/github/downloads/bbuchfink/diamond/total)](https://github.com/bbuchfink/diamond/releases)
 [![image](https://anaconda.org/bioconda/diamond/badges/version.svg)](https://anaconda.org/bioconda/diamond)
 [![Conda](https://img.shields.io/conda/dn/bioconda/diamond.svg)](https://anaconda.org/bioconda/diamond/files)

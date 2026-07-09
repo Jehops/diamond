@@ -75,7 +75,7 @@ static void run_block_combos(Job& job, const VolumedFile& volumes, const string&
 	Atomic q(base_dir + "queue", job);
 	Atomic finished(base_dir + "finished", job);
 	const int64_t n = (int64_t)volumes.size();
-	while (r = q.fetch_add(), r < n) {
+	while (job.goon() && (r = q.fetch_add(), r < n)) {
 		unique_ptr<vector<BitVector>> seed_hit_table(new vector<BitVector>());
 		for (int i = 0; i <= r; ++i) {
 			job.log("Searching blocks. Blocks=%lli,%lli", r + 1, i + 1);
@@ -86,7 +86,10 @@ static void run_block_combos(Job& job, const VolumedFile& volumes, const string&
 			run_search(job, volumes, r, i, base_dir, seed_hit_table);
 		}
 		finished.fetch_add();
+		job.finish_step();
 	}
+	if (!job.goon())
+		return;
 	finished.await(n);
 
 	Atomic concat_lock(base_dir + "concat_lock", job);
@@ -110,6 +113,7 @@ static void run_block_combos(Job& job, const VolumedFile& volumes, const string&
 		}
 		out.close();
 		concat_done.fetch_add();
+		job.finish_step();
 	}
 	else
 		concat_done.await(1);
@@ -135,12 +139,14 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 		unique_ptr<vector<BitVector>> seed_hit_table;
 		run_search(job, volumes, -1, -1, base_dir, seed_hit_table);
 	}
+	if (!job.goon())
+		return pair<string, uint64_t>("", 0);
 	if (job.last_round()) {
 		if (!config.fasta_index_file.empty())
 			remove_tmp_file(config.fasta_index_file);
 		if (config.reps_out.empty())
-			volumes.remove(job.round() > 0);
-	}
+			volumes.remove(job.round() > 0, true, false);
+	}	
 	Atomic gvc_lock(base_dir + "gvc_lock", job);
 	Atomic gvc_done(base_dir + "gvc_done", job);
 	if (gvc_lock.fetch_add() == 0) {		
@@ -179,16 +185,19 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 			rep_out->close();
 		}
 		gvc_done.fetch_add();
+		job.finish_step();
 	}
 	else
 		gvc_done.await(1);
 	rmdir(base_dir.c_str());
+	if (!job.goon())
+		return pair<string, uint64_t>("", 0);
 	return get_reps(job, volumes);
 }
 
 void multinode() {
-	//if (config.min_id != 0.0)
-		//throw runtime_error("Option not supported for this workflow: --id");
+	if (config.single_step && config.parallel_tmpdir.empty())
+		throw runtime_error("Cannot use --single-step without --parallel-tmpdir");
 	config.database.require();
 	Cluster::init_thresholds();
 	const Header hdr_format = TabularFormat::header_format(::Config::cluster);
@@ -251,6 +260,8 @@ void multinode() {
 	uint64_t letters = 0;
 	job.set_round_count((int)steps.size(), steps);
 	const string input_parts = len_sort(job, volumes);
+	if (!job.goon())
+		return;
 	VolumedFile input_volumes(input_parts);
 	input_volumes.set_letter_count(volumes.letter_count());
 	const vector<string> ccd_arg = config.connected_component_depth;
@@ -271,6 +282,8 @@ void multinode() {
 		config.connected_component_depth.clear();
 		config.connected_component_depth.push_back(std::to_string(ccd));
 		tie(reps, letters) = run_round(job, i == 0 ? input_volumes : VolumedFile(reps, letters));
+		if (!job.goon())
+			return;
 		if (i < steps.size() - 1)
 			job.next_round();
 	}
@@ -284,6 +297,12 @@ void multinode() {
 		done.close();
 		job.finish();
 		remove_tmp_file(input_vols);
+		for (size_t i = 0; i < steps.size(); ++i) {
+			remove_tmp_file(job.base_dir(i) + PATH_SEPARATOR + "reps" + PATH_SEPARATOR + "reps.tsv");
+			rmdir(job.base_dir(i) + PATH_SEPARATOR + "reps");
+			rmdir(job.base_dir(i));
+		}
+		input_volumes.remove(false, false, true);
 		rmdir(config.tmpdir);
 	}
 }

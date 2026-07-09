@@ -27,7 +27,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/match.h"
 #include "dp/flags.h"
 #include "output/output_format.h"
-#include "util/algo/algo.h"
 #include "multinode.h"
 
 class ClusteringAlgorithm {

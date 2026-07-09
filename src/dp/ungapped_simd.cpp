@@ -69,20 +69,18 @@ void window_ungapped(const Letter *query, const Letter **subjects, int subject_c
 void window_ungapped_best(const Letter* query, const Letter** subjects, int subject_count, int window, int* out) {
 #if defined(__SSE4_1__) | defined(__aarch64__)
 	if (subject_count < 4) {
-#endif
 		for (int i = 0; i < subject_count; ++i)
 			out[i] = ungapped_window(query, subjects[i], window);
-#if defined(__SSE4_1__) | defined(__aarch64__)
 	}
+	else {
+		window_ungapped(query, subjects, subject_count, window, out);
+	}
+#else
+	for (int i = 0; i < subject_count; ++i)
+		out[i] = ungapped_window(query, subjects[i], window);
 #endif
-#if ARCH_ID == 2
 	//else if (subject_count <= 16)
 		//::DP::ARCH_SSE4_1::window_ungapped(query, subjects, subject_count, window, out);
-	else
-		window_ungapped(query, subjects, subject_count, window, out);
-#elif defined(__SSE4_1__) | defined(__aarch64__)
-	window_ungapped(query, subjects, subject_count, window, out);
-#endif
 }
 
 }

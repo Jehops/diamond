@@ -371,6 +371,7 @@ struct Config
 	bool symmetrize_evalue;
 	std::string taxdump;
 	bool fpu_compat;
+	bool single_step;
 
     SequenceType dbtype;
 

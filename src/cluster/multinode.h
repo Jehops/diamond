@@ -46,9 +46,10 @@ struct Job {
 	Job() :
 		mem_limit(Util::String::interpret_number(config.memory_limit.get(DEFAULT_MEMORY_LIMIT))),
 		max_oid_(std::numeric_limits<OId>::max()),
-		base_dir_(config.tmpdir),
+		base_dir_(absolute_path(config.tmpdir).first),
 		round_(0),
-		start_(std::chrono::system_clock::now())
+		start_(std::chrono::system_clock::now()),
+		steps_finished_(0)
 	{
 		register_temp_dir(base_dir_);
 		make_temp_dir(base_dir());
@@ -157,6 +158,14 @@ struct Job {
 		register_temp_dir(dir_name);
 	}
 
+	void finish_step() {
+		++steps_finished_;
+	}
+
+	bool goon() const {
+		return !config.single_step || steps_finished_ == 0;
+	}
+
 	const uint64_t mem_limit;
 
 private:
@@ -172,12 +181,14 @@ private:
 	ClusterStats stats_;
 	std::vector<std::string> sync_files_;
 	std::vector<std::string> temp_dirs_;
+	int steps_finished_;
 
 };
 
 std::pair<std::string, uint64_t> get_reps(Job& job, const VolumedFile& volumes);
 void merge(Job& job, const VolumedFile& volumes, Header hdr_format);
 //void extend(Job& job, std::vector<std::pair<OId, OId>>& out, const VolumedFile& volumes);
+std::vector<std::pair<int, OId>> make_blocks(Job& job, VolumedFile& volumes, std::vector<std::unique_ptr<std::ofstream>>& out, std::vector<std::unique_ptr<std::ofstream>>& acc_out);
 std::string len_sort(Job& job, VolumedFile& volumes);
 std::vector<OId> build_merged(Job& job);
 void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, std::string base_dir, std::unique_ptr<std::vector<BitVector>>& seed_hit_table);

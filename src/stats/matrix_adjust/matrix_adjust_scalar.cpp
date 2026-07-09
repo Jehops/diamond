@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cmath>
 #include <limits>
-
 #include "util/simd/dispatch.h"
 #include "basic/config.h"
 #include "../stats.h"
@@ -96,12 +95,11 @@ static bool matrix_adjust_impl(const Float* q, const Float* P, const Float* Q, F
         };
 
     const Float TMIN = Float(0.05), TMAX = Float(21.0), RE_TOL = Float(config.relative_entropy_tolerance);
-
     Float lo, hi, flo, fhi;
     const Float f1 = re_at(1.0) - target_re;
     if (std::fabs(f1) < RE_TOL) return true;
 
-    if (f1 < Float(0.0)) {        
+    if (f1 < Float(0.0)) {
         lo = 1.0; flo = f1; hi = 0.0; fhi = 0.0;
         bool bracketed = false;
         for (Float t = 1.0; t < TMAX; ) {
@@ -112,7 +110,7 @@ static bool matrix_adjust_impl(const Float* q, const Float* P, const Float* Q, F
         }
         if (!bracketed) return false;
     }
-    else {        
+    else {
         flo = re_at(TMIN) - target_re;
         if (flo >= Float(0.0)) return true;
         lo = TMIN; hi = 1.0; fhi = f1;

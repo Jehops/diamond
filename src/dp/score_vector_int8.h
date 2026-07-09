@@ -472,6 +472,8 @@ struct ScoreVector<int8_t, DELTA>
 	{
 		const int8x16_t* row = reinterpret_cast<const int8x16_t*>(&score_matrix.matrix8()[a << 5]);
 
+		seq = letter_mask(seq);
+
 		int8x16_t high_mask = vreinterpretq_s8_s16(vshlq_n_s16(vreinterpretq_s16_s8(vandq_s8(seq, vdupq_n_s8('\x10'))), 3));
 		int8x16_t seq_low   = vorrq_s8(seq, high_mask);
 		int8x16_t seq_high  = vorrq_s8(seq, veorq_s8(high_mask, vdupq_n_s8('\x80')));

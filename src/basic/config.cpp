@@ -354,12 +354,13 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 	auto& cluster_opt = parser.add_group("Clustering options", { cluster, RECLUSTER, DEEPCLUST, LINCLUST });
 	kmer_ranking = false;
 	cluster_opt.add()
-		("cluster-steps", 0, "Clustering steps", cluster_steps)
+		("cluster-steps", 0, "Clustering rounds for cascaded clustering", cluster_steps)
 		("kmer-ranking", 0, "Rank sequences based on kmer frequency in linear stage", kmer_ranking)
 		("round-coverage", 0, "Per-round coverage cutoffs for cascaded clustering", round_coverage)
 		("round-approx-id", 0, "Per-round approx-id cutoffs for cascaded clustering", round_approx_id)
 		("aln-out", 0, "Output file for clustering alignments", aln_out)
-		("reps", 0, "Output file for representative sequences in FASTA format. Only includes id and sequence (no additional header data).", reps_out);
+		("reps", 0, "Output file for representative sequences in FASTA format. Only includes id and sequence (no additional header data).", reps_out)
+		("single-step", 0, "Perform one computational step of clustering then exit", single_step);
 
 	auto& memory_opt = parser.add_group("Memory options", { cluster, RECLUSTER, CLUSTER_REASSIGN, GREEDY_VERTEX_COVER, DEEPCLUST, LINCLUST, CLUSTER_REALIGN });
 	memory_opt.add()
@@ -449,6 +450,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("sam-query-len", 0, "add the query length to the SAM format (tag ZQ)", sam_qlen_field)
 		("stop-match-score", 0, "Set the match score of stop codons against each other.", stop_match_score, 1)		
 		("target-indexed", 0, "Enable target-indexed mode", target_indexed)
+		("self", 0, "Enable self-alignment", self)
 		("daa-build-version", 0, "diamond build version to write to DAA file", daa_build_version)
 		("cut-bar", 0, "", cut_bar)
 		("check-multi-target", 0, "", check_multi_target)
@@ -570,8 +572,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("gapped-filter-window", 0, "", gapped_filter_window, 200)
 		("output-hits", 0, "", output_hits)
 		("band-bin", 0, "", band_bin, 24)
-		("col-bin", 0, "", col_bin, 400)
-		("self", 0, "", self)
+		("col-bin", 0, "", col_bin, 400)		
 		("trace-pt-fetch-size", 0, "", trace_pt_fetch_size, UINT64_C(10000000000))
 		("short-query-max-len", 0, "", short_query_max_len, 60)
 		("gapped-filter-evalue1", 0, "", gapped_filter_evalue1, 2000.0)

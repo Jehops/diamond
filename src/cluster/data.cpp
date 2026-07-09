@@ -224,20 +224,20 @@ pair<string, uint64_t> get_reps(Job& job, const VolumedFile& volumes) {
 	if (final && config.reps_out.empty()) {
 		return { string(),0 };
 	}
-	const string base_dir = job.base_dir() + PATH_SEPARATOR + "reps" + PATH_SEPARATOR, qpath = base_dir + "queue";
+	const string base_dir = job.base_dir() + PATH_SEPARATOR + "reps" + PATH_SEPARATOR, qpath = base_dir + "queue", letters_file_path = base_dir + "letters";
 	const string reps_list_name = base_dir + "reps.tsv";
 	job.make_temp_dir(base_dir);
 	Atomic get_reps_lock(base_dir + "get_reps_lock", job), get_reps_done(base_dir + "get_reps_done", job);
+	Atomic finished(base_dir + "finished", job);
+	Atomic letter_count(base_dir + "letter_count", job);
+	Atomic q(qpath, job);
 
-	if (!single_out_file || get_reps_lock.fetch_add() == 0) {
+	if ((!single_out_file || get_reps_lock.fetch_add() == 0) && get_reps_done.get() == 0) {
 
 		unique_ptr<FileStack> reps_list;
 		if (!final)
 			reps_list.reset(new FileStack(reps_list_name));
-
-		Atomic q(qpath, job);
-		Atomic finished(base_dir + "finished", job);
-		Atomic letter_count(base_dir + "letter_count", job);
+		
 		OId cluster_count(0);
 		uint64_t bytes = 0;
 		int64_t v = 0;
@@ -263,18 +263,29 @@ pair<string, uint64_t> get_reps(Job& job, const VolumedFile& volumes) {
 		}
 		finished.await((int)volumes.size());
 		const uint64_t letters = letter_count.get();
+		ofstream letters_out(letters_file_path);
+		letters_out << letters << endl;
+		if (!letters_out)
+			throw runtime_error("Error writing file " + letters_file_path);
+		letters_out.close();
 		if (!config.fasta_index_file.empty())
 			remove_tmp_file(config.fasta_index_file);
-		volumes.remove(job.round() > 0, false);
+		volumes.remove(job.round() > 0, false, false);
 		job.log("Representatives written: %" PRIu64 " letters: %" PRIu64, cluster_count, letters);
 		const int64_t t = timer.microseconds();
 		job.log("Wrote %zu bytes to disk at %.2f MB/s", bytes, (double)bytes / MEGABYTES / (t / 1e6));
 		reps_list.reset();
 		get_reps_done.fetch_add();
-		return { reps_list_name, letters };
+		job.finish_step();
 	}
 	else {
 		get_reps_done.await(1);
-		return { reps_list_name, 0 };
 	}
+	uint64_t letters;
+	ifstream input_letters(letters_file_path);
+	input_letters >> letters;
+	if (!input_letters)
+		throw runtime_error("Error opening file " + letters_file_path);
+	job.register_sync_file(letters_file_path);
+	return { reps_list_name, letters };
 }

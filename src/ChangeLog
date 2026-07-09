@@ -1,3 +1,12 @@
+[2.2.4]
+- Added the option `--single-step` to perform one computational step of clustering then exit
+  when using the `--parallel-tmdir` option.
+- Added the option `--self` for self-alignment.
+- Fixed a bug that could cause slightly reduced sensitivity on the ARM64 architecture.
+- Improved performance of the search and clustering workflows on the ARM64 architecture.
+- Fixed a potential `Letter count not set` error in the clustering workflows when run in
+  parallel across multiple nodes.
+
 [2.2.3]
 - Clustering workflows now by default apply BLAST-like compositional matrix adjust,
   unconditionally, instead of compositional score correction described by Hauser et al., 2016.
