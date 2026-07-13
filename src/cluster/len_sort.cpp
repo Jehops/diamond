@@ -33,7 +33,6 @@ using std::ifstream;
 using std::unique_ptr;
 using std::runtime_error;
 using std::ofstream;
-using std::pair;
 using std::string;
 using std::vector;
 using std::endl;
@@ -56,7 +55,7 @@ struct OutputChunk {
 	}
 };
 
-static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstream>>& out, vector<unique_ptr<ofstream>>& acc_out, const vector<pair<int, OId>>& block_mapping) {
+static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstream>>& out, vector<unique_ptr<ofstream>>& acc_out, const vector<int>& block_mapping) {
 	job.log("Writing length sorted blocks");
 	OId oid = 0;
 	atomic<uint64_t> bytes_written{ 0 };
@@ -77,6 +76,7 @@ static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstr
 		for (;;) {
 			TaskTimer timer;
 			Block* b = file->load_seqs(limit);
+			*message_stream << std::setprecision(2) << std::fixed << file->rel_file_ptr() * 100 << "%" << endl;
 			ms += timer.microseconds();
 			bytes += b->raw_bytes();
 			if (b->empty()) {
@@ -124,10 +124,10 @@ static void write_blocks(Job& job, VolumedFile& volumes, vector<unique_ptr<ofstr
 					const size_t j_end = std::min(j_begin + chunk_size, seq_count);
 					for (size_t j = j_begin; j < j_end; ++j) {
 						const OId seq_oid = oid_begin + (OId)j;
-						const size_t block = (size_t)block_mapping[seq_oid].first;
-						const string new_oid = std::to_string(block_mapping[seq_oid].second);
-						Util::Seq::format(b->seqs()[j], new_oid.c_str(), nullptr, buffers[block], "fasta", amino_acid_traits);
-						acc_buffers[block] << new_oid << '\t';
+						const size_t block = (size_t)block_mapping[seq_oid];
+						const string oid_str = std::to_string(seq_oid);
+						Util::Seq::format(b->seqs()[j], oid_str.c_str(), nullptr, buffers[block], "fasta", amino_acid_traits);
+						acc_buffers[block] << oid_str << '\t';
 						acc_buffers[block] << Util::Seq::seqid(b->ids()[j]) << '\n';
 					}					
 					vector<OutputChunk> bundles(writer_count);
@@ -198,7 +198,7 @@ string len_sort(Job& job, VolumedFile& volumes) {
 		ofstream idx(input_parts);
 		vector<unique_ptr<ofstream>> out;
 		vector<unique_ptr<ofstream>> acc_out;
-		vector<pair<int, OId>> block_mapping = make_blocks(job, volumes, out, acc_out);
+		vector<int> block_mapping = make_blocks(job, volumes, out, acc_out);
 		write_blocks(job, volumes, out, acc_out, block_mapping);
 		done.fetch_add();
 		job.finish_step();

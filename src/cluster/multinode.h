@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 #include <chrono>
+#include <unordered_set>
 #include "basic/config.h"
 #include "util/string/string.h"
 #include "util/parallel/filestack.h"
@@ -162,8 +163,11 @@ struct Job {
 		++steps_finished_;
 	}
 
-	bool goon() const {
-		return !config.single_step || steps_finished_ == 0;
+	bool goon() {
+		const bool r = !config.single_step || steps_finished_ == 0;
+		if (!r)
+			log("Job step finished, terminating...");
+		return r;
 	}
 
 	const uint64_t mem_limit;
@@ -188,8 +192,9 @@ private:
 std::pair<std::string, uint64_t> get_reps(Job& job, const VolumedFile& volumes);
 void merge(Job& job, const VolumedFile& volumes, Header hdr_format);
 //void extend(Job& job, std::vector<std::pair<OId, OId>>& out, const VolumedFile& volumes);
-std::vector<std::pair<int, OId>> make_blocks(Job& job, VolumedFile& volumes, std::vector<std::unique_ptr<std::ofstream>>& out, std::vector<std::unique_ptr<std::ofstream>>& acc_out);
+std::vector<int> make_blocks(Job& job, VolumedFile& volumes, std::vector<std::unique_ptr<std::ofstream>>& out, std::vector<std::unique_ptr<std::ofstream>>& acc_out);
 std::string len_sort(Job& job, VolumedFile& volumes);
 std::vector<OId> build_merged(Job& job);
 void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, std::string base_dir, std::unique_ptr<std::vector<BitVector>>& seed_hit_table);
 std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, const Volume& vol, size_t v, std::pmr::memory_resource& pool, bool remove);
+std::pmr::unordered_map<OId, std::pmr::string> read_mapping_tables(Job& job, const std::unordered_set<OId>& wanted, std::pmr::memory_resource& pool);

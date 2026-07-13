@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <unordered_map>
+#include <unordered_set>
 #include <inttypes.h>
 #include "multinode.h"
 #include "volume.h"
@@ -59,23 +60,10 @@ struct RepWriteConfig {
 };
 
 static tuple<OId, uint64_t, uint64_t> write_reps(Job& job, const VolumedFile& volumes, size_t idx, const RepWriteConfig& cfg,
+	const unordered_set<OId>& rep_id_set, const std::pmr::unordered_map<OId, std::pmr::string>& oid2seqid,
 	atomic<OId>& count_all, atomic<OId>& min_all, atomic<OId>& max_all) {
 	job.log("Writing representatives. Volume=%lli/%lli Records=%s", idx + 1, volumes.size(), Util::String::format(volumes[idx].record_count).c_str());
 	const bool final = job.last_round();
-	std::pmr::unsynchronized_pool_resource mem_pool;
-	const string id_file = job.base_dir() + "rep_ids" + std::to_string(idx);
-	ifstream rep_ids(id_file);
-	if (!rep_ids)
-		throw runtime_error("Error opening file " + id_file);
-	string id;
-	unordered_set<OId> rep_id_set;
-	while (rep_ids >> id) {
-		OId rep_id = std::atoll(id.c_str());
-		rep_id_set.insert(rep_id);
-	}
-	rep_ids.close();
-	remove_tmp_file(id_file);
-	std::pmr::unordered_map<OId, std::pmr::string> oid2seqid = final ? read_mapping_table(job, volumes[idx], idx, mem_pool, false) : std::pmr::unordered_map<OId, std::pmr::string>(&mem_pool);
 
 	const SequenceFile::Flags flags = SequenceFile::Flags::SEQS | SequenceFile::Flags::TITLES | SequenceFile::Flags::NEED_LETTER_COUNT;
 	string out_file = cfg.single_out_file ? cfg.output_path : cfg.output_path + std::to_string(idx) + ".faa";
@@ -233,6 +221,20 @@ pair<string, uint64_t> get_reps(Job& job, const VolumedFile& volumes) {
 	Atomic q(qpath, job);
 
 	if ((!single_out_file || get_reps_lock.fetch_add() == 0) && get_reps_done.get() == 0) {
+		std::pmr::unsynchronized_pool_resource mem_pool;
+		const string id_file = job.base_dir() + "rep_ids";
+		ifstream rep_ids(id_file);
+		if (!rep_ids)
+			throw runtime_error("Error opening file " + id_file);
+		OId rep_id;
+		unordered_set<OId> rep_id_set;
+		while (rep_ids >> rep_id)
+			rep_id_set.insert(rep_id);
+		if (!rep_ids.eof())
+			throw runtime_error("Format error in representative id file " + id_file);
+		const std::pmr::unordered_map<OId, std::pmr::string> oid2seqid = final
+			? read_mapping_tables(job, rep_id_set, mem_pool)
+			: std::pmr::unordered_map<OId, std::pmr::string>(&mem_pool);
 
 		unique_ptr<FileStack> reps_list;
 		if (!final)
@@ -255,7 +257,7 @@ pair<string, uint64_t> get_reps(Job& job, const VolumedFile& volumes) {
 		while (v = q.fetch_add(), v < (int64_t)volumes.size()) {
 			OId count;
 			uint64_t seq_letters, bytes_written;
-			std::tie(count, seq_letters, bytes_written) = write_reps(job, volumes, v, cfg, count_all, min_all, max_all);
+			std::tie(count, seq_letters, bytes_written) = write_reps(job, volumes, v, cfg, rep_id_set, oid2seqid, count_all, min_all, max_all);
 			cluster_count += count;
 			bytes += bytes_written;
 			letter_count.fetch_add(seq_letters);

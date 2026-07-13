@@ -182,6 +182,7 @@ struct SequenceFile {
 	virtual std::vector<OId> accession_to_oid(const std::string& acc) const;
 	virtual ~SequenceFile();
 	virtual void print_info() const;
+	virtual double rel_file_ptr() = 0;
 
 	Type type() const { return type_; }
     Block* load_seqs(const int64_t max_letters, OId max_seqs = 0, const BitVector* filter = nullptr, const Chunk& chunk = Chunk());

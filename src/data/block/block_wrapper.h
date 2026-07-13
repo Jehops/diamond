@@ -58,6 +58,9 @@ struct BlockWrapper : public SequenceFile
 	virtual void seq_data(size_t oid, std::vector<Letter>& dst) override;
 	virtual Loc seq_length(size_t oid) override;
 	virtual void end_random_access(bool dictionary = true) override;
+	virtual double rel_file_ptr() override {
+		return 0;
+	}
 
 private:
 

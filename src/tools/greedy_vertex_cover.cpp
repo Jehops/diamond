@@ -276,7 +276,7 @@ static vector<OId> edge_pass_four(const RadixedTable& degree_sorted, OId db_size
 	vector<double> weights(db_size);
 	RepQueue queue;
 	uint64_t edges_queued = 0;
-	for (int i = degree_sorted.size()  - 1; i >= 0; --i) {
+	for (int i = degree_sorted.size() - 1; i >= 0; --i) {
 		VolumedFile f(degree_sorted[i]);
 		InputBuffer<Edge> data(f);
 		*message_stream << "Computing vertex cover bucket " << i + 1 << "/" << degree_sorted.size() << " edges=" << data.size()
@@ -302,7 +302,7 @@ static vector<OId> edge_pass_four(const RadixedTable& degree_sorted, OId db_size
 				}
 			}
 			edges_queued += r.members.size();
-			queue.push(std::move(r));			
+			queue.push(std::move(r));
 			++it;
 		}
 		greedy_vertex_cover(clustering, weights, queue, edges_queued, next_degree);

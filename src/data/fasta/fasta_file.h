@@ -72,6 +72,7 @@ struct FastaFile : public SequenceFile
 	virtual int raw_chunk_no() const override {
 		return raw_chunk_no_;
 	}
+	virtual double rel_file_ptr() override;
 
 private:
 

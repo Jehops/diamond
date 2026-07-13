@@ -143,7 +143,6 @@ struct Cfg {
 };
 
 File* realign_block_pair(CentroidId begin, CentroidId end, Cfg& cfg);
-std::string gvc_input_rep_list(int round, const std::string& tmp_dir, Job* job, OId max_oid);
 std::vector<std::string> cluster_steps(double approx_id, bool linear);
 std::vector<std::string> default_round_cov(int steps);
 bool is_linclust(const std::vector<std::string>& steps);

@@ -147,6 +147,9 @@ struct DatabaseFile : public SequenceFile
 	virtual Loc seq_length(size_t oid) override;
 	virtual void end_random_access(bool dictionary = true) override;
 	virtual void print_info() const override;
+	virtual double rel_file_ptr() override {
+		return 0;
+	}
 
 	static const char* FILE_EXTENSION;
 

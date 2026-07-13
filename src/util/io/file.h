@@ -47,7 +47,7 @@ struct File {
 	File& operator=(File&& f) noexcept;
 	void close();
 	~File();
-	void seek(int64_t p, int origin);
+	void seek(int64_t p, int origin, bool allow_compressed = false);
 	void seek(int64_t p);
 	void rewind();
 	int64_t tell();

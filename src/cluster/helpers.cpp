@@ -28,7 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using std::pair;
 using std::endl;
 using std::vector;
-using std::ofstream;
 using std::ostream;
 using std::runtime_error;
 using std::string;
@@ -205,18 +204,6 @@ double round_value(const vector<string>& par, const string& name, int round, int
 	}
 	v.insert(v.begin(), round_count - 1 - v.size(), v.front());
 	return v[round];
-}
-
-string gvc_input_rep_list(int round, const string& tmp_dir, Job* job, OId max_oid) {
-	const string acc_path = round == 0 ? tmp_dir + PATH_SEPARATOR + "oids.txt" : tmp_dir + "round" + std::to_string(round - 1) + PATH_SEPARATOR + "rep_ids";
-	if (round == 0) {
-		ofstream oid_out(acc_path);
-		if(job)
-			job->log("Writing oid file");
-		for (OId i = 0; i <= max_oid; ++i)
-			oid_out << i << endl;
-	}
-	return acc_path;
 }
 
 static int64_t seq_mem_use(Loc len, Loc id_len, int c, int min, int sketch_size) {

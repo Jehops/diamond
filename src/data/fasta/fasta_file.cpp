@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <fstream>
+#include <thread>
 #include "fasta_file.h"
 #include "util/sequence/sequence.h"
 #include "util/system/system.h"
@@ -383,6 +384,11 @@ void FastaFile::end_random_access(bool dictionary)
 	free_dictionary();
 }
 
+double FastaFile::rel_file_ptr()
+{
+	return (double)file_.front().tell() / file_.front().size();
+}
+
 pair<uint64_t, uint64_t> FastaFile::init_read() {
 	uint64_t seqs = 0, letters = 0;
 	const bool count_only = !flag_any(flags_, Flags::ACC_TO_OID_MAPPING | Flags::OID_TO_ACC_MAPPING | Flags::NEED_LENGTH_LOOKUP);
@@ -390,13 +396,15 @@ pair<uint64_t, uint64_t> FastaFile::init_read() {
 		const uint64_t limit = std::min<uint64_t>(Util::String::interpret_number(config.memory_limit.get(DEFAULT_MEMORY_LIMIT)), SequenceFile::DEFAULT_LOAD_SIZE);
 		uint64_t bytes = 0, ms = 0;
 		OId oid = 0;
+		const bool map_seqids = flag_any(flags_, Flags::ACC_TO_OID_MAPPING | Flags::OID_TO_ACC_MAPPING);
 		const SequenceFile::Flags flags = flags_;
 		flags_ |= Flags::SEQS;
-		if(flag_any(flags_, Flags::ACC_TO_OID_MAPPING | Flags::OID_TO_ACC_MAPPING))
+		if (map_seqids)
 			flags_ |= Flags::TITLES;
 		for (;;) {
 			TaskTimer timer;
 			Block* b = load_seqs(limit);
+			*message_stream << std::setprecision(2) << std::fixed << rel_file_ptr() * 100 << "%" << endl;
 			ms += timer.microseconds();
 			bytes += b->raw_bytes();
 			if (b->empty()) {
@@ -410,13 +418,32 @@ pair<uint64_t, uint64_t> FastaFile::init_read() {
 				delete b;
 				continue;
 			}
-			seq_length_.reserve(seqs);
-			for (BlockId i = 0; i < n; ++i) {
-				if (flag_any(flags_, Flags::ACC_TO_OID_MAPPING | Flags::OID_TO_ACC_MAPPING))
+			if (map_seqids) {
+				seq_length_.reserve(seqs);
+				for (BlockId i = 0; i < n; ++i) {
 					add_seqid_mapping(b->ids()[i], oid);
-				if (flag_any(flags_, Flags::NEED_LENGTH_LOOKUP))
-					seq_length_.push_back(b->seqs().length(i));
-				++oid;
+					if (flag_any(flags_, Flags::NEED_LENGTH_LOOKUP))
+						seq_length_.push_back(b->seqs().length(i));
+					++oid;
+				}
+			}
+			else if (flag_any(flags_, Flags::NEED_LENGTH_LOOKUP)) {
+				const size_t offset = seq_length_.size();
+				seq_length_.resize(offset + n);
+				const size_t thread_count = std::min<size_t>(config.threads_, n);
+				vector<std::thread> threads;
+				threads.reserve(thread_count);
+				for (size_t t = 0; t < thread_count; ++t) {
+					const BlockId begin = (BlockId)(n * t / thread_count);
+					const BlockId end = (BlockId)(n * (t + 1) / thread_count);
+					threads.emplace_back([&, begin, end, offset]() {
+						for (BlockId i = begin; i < end; ++i)
+							seq_length_[offset + i] = b->seqs().length(i);
+					});
+				}
+				for (std::thread& thread : threads)
+					thread.join();
+				oid += n;
 			}
 			delete b;
 		}

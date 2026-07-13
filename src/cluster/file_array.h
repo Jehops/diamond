@@ -56,6 +56,7 @@ struct FileArray {
 				bucket_files_[i]->push(output_files_[i]->name() + '\t' + std::to_string(records_[i]));
 			else
 				::remove(output_files_[i]->name().c_str());
+			bucket_files_[i]->close();
 			delete output_files_[i];
 		}
 		output_files_.clear();

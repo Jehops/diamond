@@ -254,9 +254,9 @@ void File::write_c_str(const char* s) {
 	write(s, strlen(s) + 1);
 }
 
-void File::seek(int64_t p, int origin)
+void File::seek(int64_t p, int origin, bool allow_compressed)
 {
-	if(decompressor_ && decompressor_->lib() != CompressionLib::NONE && (p != 0 || origin != SEEK_SET))
+	if(decompressor_ && decompressor_->lib() != CompressionLib::NONE && (p != 0 || origin != SEEK_SET) && !allow_compressed)
 		throw runtime_error("Seeking is not supported for compressed files.");
 #ifdef WIN32
 	if (_fseeki64(file_, p, origin) != 0) {
@@ -302,9 +302,9 @@ int64_t File::tell()
 
 int64_t File::size() {
 	const int64_t pos = tell();
-	seek(0l, SEEK_END);
+	seek(0l, SEEK_END, true);
 	const int64_t s = tell();
-	seek(pos, SEEK_SET);
+	seek(pos, SEEK_SET, true);
 	return s;
 }
 

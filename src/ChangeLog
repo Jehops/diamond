@@ -1,7 +1,12 @@
 [2.2.4]
+- Improved the performance of the clustering workflows.
+- Improved the performance of reading FASTA files.
 - Added the option `--single-step` to perform one computational step of clustering then exit
-  when using the `--parallel-tmdir` option.
-- Added the option `--self` for self-alignment.
+  when using the `--parallel-tmdir` option, making it easier to orchestrate big clustering
+  runs in a controlled way.
+- Added progress output for sequence loading in clustering workflows.
+- Fixed two potential issues of increased memory use in the clustering workflows.
+- Added the option `--self` for self-alignment of the database file.
 - Fixed a bug that could cause slightly reduced sensitivity on the ARM64 architecture.
 - Improved performance of the search and clustering workflows on the ARM64 architecture.
 - Fixed a potential `Letter count not set` error in the clustering workflows when run in

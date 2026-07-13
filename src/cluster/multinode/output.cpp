@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <inttypes.h>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include "../multinode.h"
 #include "../volume.h"
 #include "basic/config.h"
@@ -37,6 +38,7 @@ using std::string;
 using std::vector;
 using std::runtime_error;
 using std::unique_ptr;
+using std::unordered_set;
 
 static OId output_oids(Job& job, const vector<OId>& merged) {
 	FILE* out = fopen(config.output_file.c_str(), "wt");
@@ -121,6 +123,31 @@ std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, cons
 	return oid2acc;
 }
 
+std::pmr::unordered_map<OId, std::pmr::string> read_mapping_tables(Job& job, const unordered_set<OId>& wanted, std::pmr::memory_resource& pool) {
+	std::pmr::unordered_map<OId, std::pmr::string> oid2acc(&pool);
+	oid2acc.reserve(wanted.size());
+	VolumedFile input_volumes(job.root_dir() + "input.tsv");
+	for (size_t v = 0; v < input_volumes.size() && oid2acc.size() < wanted.size(); ++v) {
+		const string path = job.root_dir() + "input" + std::to_string(v) + ".tsv";
+		ifstream in(path);
+		if (!in.good())
+			throw runtime_error("Error opening accessions file: " + path);
+		OId oid;
+		std::pmr::string acc(&pool);
+		while (in >> oid) {
+			in >> acc;
+			if (!in)
+				throw runtime_error("Format error in accessions file: " + path);
+			if (wanted.find(oid) != wanted.end() && oid2acc.emplace(oid, acc).second == false)
+				throw runtime_error("Duplicate OID in accessions file: " + path);
+		}
+		in.close();
+	}
+	if (oid2acc.size() < wanted.size())
+		throw runtime_error("Accessions file does not contain all representative OIDs");
+	return oid2acc;
+}
+
 static RadixedTable output_round1(Job& job, const vector<OId>& merged, const VolumedFile& volumes) {
 	std::pmr::unsynchronized_pool_resource pool;
 	const string base_dir = job.root_dir() + "output" + PATH_SEPARATOR;
@@ -151,33 +178,35 @@ static OId output_round2(Job& job, const vector<OId>& merged, const VolumedFile&
 	if (hdr_format == Header::SIMPLE)
 		out << Cluster::HEADER_LINE << endl;
 	OId cluster_count = 0;
-	for (size_t v = 0; v < volumes.size(); ++v) {
-		const Volume& vol = volumes.at(v);
-		job.log("Building output table (round 2) volume %zu/%zu oid %" PRId64 " - %" PRId64, v + 1, volumes.size(), vol.oid_begin, vol.oid_end);
+	for (const Bucket& b : round1) {
+		VolumedFile f(b);
+		job.log("Building output table (round 2) bucket records=%zu", f.sparse_records());
 		log_rss();
-		const std::pmr::unordered_map<OId, std::pmr::string> oid2acc = read_mapping_table(job, vol, v, pool, true);
-		for (const Bucket& b : round1) {
-			if (b.key_end() <= vol.oid_begin || b.key_begin() >= vol.oid_end)
-				continue;
-			VolumedFile f(b);
-			InputBuffer<AccMapping> data(f, pool);
-			data.sort();
-			OId last_rep = AccMapping::NIL;
-			for (auto it = data.cbegin(); it != data.cend(); ++it) {
-				if (it->rep < vol.oid_begin || it->rep >= vol.oid_end)
-					continue;
-				out << oid2acc.at(it->rep) << '\t' << it->member_acc << endl;
-				if(!out.good())
-					throw runtime_error("Error writing output file: " + config.output_file);
-				if (it->rep != last_rep) {
-					++cluster_count;
-					last_rep = it->rep;
-				}
+		InputBuffer<AccMapping> data(f, pool);
+		data.sort();
+		for (auto it = data.cbegin(); it != data.cend();) {
+			const auto begin = it;
+			const OId rep = it->rep;
+			const std::pmr::string* rep_acc = nullptr;
+			while (it != data.cend() && it->rep == rep) {
+				if (it->member == rep)
+					rep_acc = &it->member_acc;
+				++it;
 			}
+			if (rep_acc == nullptr)
+				throw runtime_error("Missing accession mapping for representative OID " + std::to_string(rep));
+			for (auto member = begin; member != it; ++member) {
+				out << *rep_acc << '\t' << member->member_acc << endl;
+				if (!out.good())
+					throw runtime_error("Error writing output file: " + config.output_file);
+			}
+			++cluster_count;
 		}
 	}
 	for (const Bucket& b : round1)
 		VolumedFile(b).remove();
+	for (size_t v = 0; v < volumes.size(); ++v)
+		remove_tmp_file(job.root_dir() + "input" + std::to_string(v) + ".tsv");
 	rmdir(job.root_dir() + "output");
 	return cluster_count;
 }

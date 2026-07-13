@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <inttypes.h>
 #include <cstdarg>
+#include <unordered_set>
 #include "basic/config.h"
 #include "volume.h"
 #include "multinode.h"
@@ -41,6 +42,9 @@ using std::endl;
 using std::ifstream;
 using std::tie;
 using std::shared_ptr;
+using std::unordered_set;
+
+static OId write_representative_ids(Job& job, const string& clusters_file);
 
 void Job::log(const char* format, ...) {
 	char buffer[1024];
@@ -149,10 +153,9 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 	}	
 	Atomic gvc_lock(base_dir + "gvc_lock", job);
 	Atomic gvc_done(base_dir + "gvc_done", job);
-	if (gvc_lock.fetch_add() == 0) {		
+	if (gvc_lock.fetch_add() == 0) {
 		job.log("Running greedy vertex cover");
-		const string acc_path = Cluster::gvc_input_rep_list(job.round(), job.root_dir(), &job, volumes.max_oid());
-		config.database = acc_path;
+		config.max_oid = volumes.max_oid();
 		config.edges = aln_path;
 		config.edge_format = mutual_cover ? "triplet" : "";
 		config.symmetric = mutual_cover;
@@ -160,29 +163,10 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 		GVC::Cfg cfg;
 		cfg.tmp_dir = job.base_dir();
 		GVC::greedy_vertex_cover(cfg);
-		remove_tmp_file(acc_path);
 		remove_tmp_file(aln_path);
 		if (!job.last_round() || !config.reps_out.empty()) {
 			job.log("Writing representative ids");
-			ifstream cl(config.output_file);
-			OId rep, member;
-			size_t vol = 0;
-			unique_ptr<ofstream> rep_out(new ofstream(job.base_dir() + "rep_ids" + std::to_string(vol)));
-			unique_ptr<ofstream> rep_out2;
-			if (!job.last_round())
-				rep_out2.reset(new ofstream(job.base_dir() + "rep_ids"));
-			while (cl >> rep >> member) {
-				while (volumes[vol].oid_end <= member) {
-					++vol;
-					rep_out.reset(new ofstream(job.base_dir() + "rep_ids" + std::to_string(vol)));
-				}
-				if (rep == member) {
-					*rep_out << rep << endl;
-					if (rep_out2)
-						*rep_out2 << rep << endl;
-				}
-			}
-			rep_out->close();
+			write_representative_ids(job, config.output_file);
 		}
 		gvc_done.fetch_add();
 		job.finish_step();
@@ -193,6 +177,28 @@ static pair<string, uint64_t> run_round(Job& job, const VolumedFile& volumes) {
 	if (!job.goon())
 		return pair<string, uint64_t>("", 0);
 	return get_reps(job, volumes);
+}
+
+static OId write_representative_ids(Job& job, const string& clusters_file) {
+	unordered_set<OId> reps;
+	ifstream cl(clusters_file);
+	if (!cl)
+		throw runtime_error("Error opening clustering file: " + clusters_file);
+	ofstream out(job.base_dir() + "rep_ids");
+	if (!out)
+		throw runtime_error("Error opening representative id file");
+	OId rep, member;
+	while (cl >> rep >> member) {
+		if (rep != member)
+			continue;
+		if (reps.insert(rep).second)
+			out << rep << endl;
+	}
+	if (!cl.eof())
+		throw runtime_error("Format error in clustering file: " + clusters_file);
+	if (!out)
+		throw runtime_error("Error writing representative id file");
+	return (OId)reps.size();
 }
 
 void multinode() {
@@ -298,6 +304,7 @@ void multinode() {
 		job.finish();
 		remove_tmp_file(input_vols);
 		for (size_t i = 0; i < steps.size(); ++i) {
+			remove_tmp_file(job.base_dir(i) + "rep_ids");
 			remove_tmp_file(job.base_dir(i) + PATH_SEPARATOR + "reps" + PATH_SEPARATOR + "reps.tsv");
 			rmdir(job.base_dir(i) + PATH_SEPARATOR + "reps");
 			rmdir(job.base_dir(i));
