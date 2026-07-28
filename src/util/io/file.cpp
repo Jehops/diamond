@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
+#else
+#include <unistd.h> // unlink
 #endif
 #include <string.h> // strerror
 #include "file.h"
