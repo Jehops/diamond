@@ -64,6 +64,9 @@ struct DecodedPackage {
 	std::vector<std::pair<OId, TaxId>> taxids;
 	size_t seq_count = 0;
 	int no;
+	uint64_t byte_size() const {
+		return block.mem_size();
+	}
 };
 
 struct RawChunk;

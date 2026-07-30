@@ -18,19 +18,42 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#include <cstdint>
 #include <list>
 #include <array>
+#include <vector>
 #include "basic/match.h"
 #include "basic/statistics.h"
 #include "util/text_buffer.h"
 #include "run/config.h"
 #include "dp/flags.h"
 #include "stats/cbs.h"
+#include "stats/hauser_correction.h"
 #include "basic/const.h"
+#include "util/sequence/seqindex.h"
 
 namespace Extension {
 
 extern const std::map<Sensitivity, Mode> default_ext_mode;
+
+struct Query {
+	Query(BlockId block_id, Statistics& stats, const Search::Config& cfg, std::pmr::monotonic_buffer_resource& pool);
+
+	const int8_t* composition_bias(int context) const {
+		return hauser_correction.empty() ? nullptr : hauser_correction[context].int8.data();
+	}
+
+	BlockId block_id;
+	std::vector<Sequence> sequence;
+	std::vector<HauserCorrection> hauser_correction;
+	::Stats::Composition composition{};
+	const char* title;
+	int source_length;
+	int true_aa_length;
+	double self_alignment_score;
+	std::unique_ptr<Seqindex> seqindex;
+	Score ungapped_cutoff;
+};
 
 struct Match {
 	Match(const BlockId target_block_id, const Sequence& seq, std::unique_ptr<::Stats::TargetMatrix>&& matrix, Score ungapped_score, Score filter_score = 0, double filter_evalue = DBL_MAX):
@@ -54,7 +77,7 @@ struct Match {
 	static Match self_match(BlockId query_id, Sequence query_seq);
 	void inner_culling();
 	void max_hsp_culling();
-	void apply_filters(int source_query_len, const char *query_title, const Sequence& query_seq, const double query_self_aln_score, const Block& targets, const OutputFormat* output_format);
+	void apply_filters(const Query& query, const Block& targets, const OutputFormat* output_format);
 	BlockId target_block_id;
 	Sequence seq;
 	std::unique_ptr<::Stats::TargetMatrix> matrix;

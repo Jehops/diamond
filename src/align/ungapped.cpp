@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ****/
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <iostream>
 #include <array>
 #include <algorithm>
 #include <utility>
@@ -25,8 +26,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "basic/config.h"
 #include "stats/hauser_correction.h"
 #include "target.h"
+#include "reseek.h"
 #include "dp/ungapped.h"
-#include "target.h"
 #include "util/parallel/thread_pool.h"
 #include "chaining/chaining.h"
 #include "def.h"
@@ -38,34 +39,37 @@ using std::list;
 using std::atomic;
 using std::mutex;
 using std::pair;
+using std::runtime_error;
 
 namespace Extension {
 
-WorkTarget::WorkTarget(BlockId block_id, const Sequence& seq, Sequence query, Loc query_len_true_aa, const ::Stats::Composition& query_comp, Loc max_target_len, Statistics& stats, std::pmr::monotonic_buffer_resource& pool) :
+WorkTarget::WorkTarget(BlockId block_id, const Sequence& seq, const Query& query, Loc max_target_len, Statistics& stats, std::pmr::monotonic_buffer_resource& pool) :
 	block_id(block_id),
 	seq(seq),
 	done(false)
 {
 	ungapped_score.fill(0);
 	Stats::EMatrixAdjustRule rule;
-	if (!config.anchored_swipe && (rule = ::Stats::adjust_matrix(query_comp, query_len_true_aa, config.comp_based_stats_.get(Stats::DEFAULT_CBS), seq)) != Stats::eDontAdjustMatrix) {
-		matrix.reset(new ::Stats::TargetMatrix(query_comp, query_len_true_aa, config.comp_based_stats_.get(Stats::DEFAULT_CBS), seq, stats, pool, rule));
+	const unsigned cbs = static_cast<unsigned>(config.comp_based_stats_.get(Stats::DEFAULT_CBS));
+	if (!config.anchored_swipe && (rule = ::Stats::adjust_matrix(query.composition, query.true_aa_length, cbs, seq)) != Stats::eDontAdjustMatrix) {
+		matrix.reset(new ::Stats::TargetMatrix(query.composition, query.true_aa_length, cbs, seq, stats, pool, rule));
 		/*if (config.anchored_swipe) {
 			TaskTimer timer;
-			profile = DP::make_profile16(query, *matrix, query.length() + max_target_len + 32);
+			profile = DP::make_profile16(query.sequence[0], *matrix, query.sequence[0].length() + max_target_len + 32);
 			profile_rev = profile.reverse();
 			stats.inc(Statistics::TIME_PROFILE_GENERATION, timer.microseconds());
 		}*/
 	}
 }
 
-WorkTarget ungapped_stage(FlatArray<SeedHit>::DataIterator begin, FlatArray<SeedHit>::DataIterator end, const Sequence *query_seq, const HauserCorrection *query_cb, const ::Stats::Composition& query_comp, uint32_t block_id, Loc max_target_len, Statistics& stats, const Block& targets, const Mode mode, std::pmr::monotonic_buffer_resource& pool, const Search::Config& cfg) {
+WorkTarget ungapped_stage(FlatArray<SeedHit>::DataIterator begin, FlatArray<SeedHit>::DataIterator end, const Query& query, uint32_t block_id, Loc max_target_len, Statistics& stats, const Block& targets, const Mode mode, std::pmr::monotonic_buffer_resource& pool, const Search::Config& cfg) {
 	array<vector<DiagonalSegment>, MAX_CONTEXT> diagonal_segments;
 	const SequenceSet& ref_seqs = targets.seqs(), &ref_seqs_unmasked = targets.unmasked_seqs();
-	//const bool masking = config.comp_based_stats == ::Stats::CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST ? ::Stats::use_seg_masking(query_seq[0], ref_seqs_unmasked[block_id]) : true;
+	//const bool masking = config.comp_based_stats == ::Stats::CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST ? ::Stats::use_seg_masking(query.sequence[0], ref_seqs_unmasked[block_id]) : true;
 	const bool masking = true;
+	const bool reseek = config.reseek_diags || config.lin_stage1_query || config.lin_stage1_target;
 	const bool with_diag_filter = (config.hamming_ext || config.diag_filter_cov.present() || config.diag_filter_id.present()) && !config.mutual_cover.present() && align_mode.query_contexts == 1;
-	WorkTarget target(block_id, masking ? ref_seqs[block_id] : ref_seqs_unmasked[block_id], *query_seq, ::Stats::count_true_aa(query_seq[0]), query_comp, max_target_len, stats, pool);
+	WorkTarget target(block_id, masking ? ref_seqs[block_id] : ref_seqs_unmasked[block_id], query, max_target_len, stats, pool);
 	
 	if (mode == Mode::FULL) {
 		for (FlatArray<SeedHit>::DataIterator hit = begin; hit < end; ++hit)
@@ -73,26 +77,51 @@ WorkTarget ungapped_stage(FlatArray<SeedHit>::DataIterator begin, FlatArray<Seed
 		if (!with_diag_filter)
 			return target;
 	}
-	if (end - begin == 1 && align_mode.query_translated) { // ???
+	if (end - begin == 1 && align_mode.query_translated) { // TODO
 		target.ungapped_score[begin->frame] = begin->score;
 		target.hsp[begin->frame].emplace_back(begin->diag(), begin->diag(), begin->score, begin->frame, begin->query_range(), begin->target_range(), begin->diag_segment());
 		return target;
 	}
+
+	//std::cout << query.title << ' ' << targets.ids()[block_id] << std::endl;
+
+	vector<SeedHit> reseek_hits;
+	if (reseek) {
+		reseek_hits = reseek_diags(query, target.seq, cfg.hamming_filter_id);
+		stats.inc(Statistics::RESEEKED_DIAGONALS, reseek_hits.size());
+		reseek_hits.insert(reseek_hits.end(), begin, end);
+		begin = reseek_hits.begin();
+		end = reseek_hits.end();
+	}
+	/*std::sort(reseek_hits.begin(), reseek_hits.end());
+	for (auto hit = reseek_hits.begin(); hit != reseek_hits.end(); ++hit) {
+		if (!diagonal_segments[0].empty() && diagonal_segments[0].back().diag() == hit->diag() && diagonal_segments[0].back().subject_end() >= hit->j)
+			continue;
+		//stats.inc(Statistics::ADJACENCY_FILTERED_SEED_HITS);
+		const DiagonalSegment d = xdrop_ungapped(query.sequence[0], query.composition_bias(0), target.seq, hit->i, hit->j, with_diag_filter);
+		std::cout << "Reseek " << hit->i << " " << hit->j << " " << d.diag() << " " << d.score << std::endl;
+		if (d.score > 0)
+			diagonal_segments[0].push_back(d);
+	}
+	diagonal_segments[0].clear();*/
 	std::sort(begin, end);
-	const bool use_hauser = ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS));
+	//std::cout << "Ungapped stage: " << end - begin << " hits, target length: " << target.seq.length() << std::endl;
 	for (FlatArray<SeedHit>::DataIterator hit = begin; hit < end; ++hit) {
 		const auto f = hit->frame;
 		target.ungapped_score[f] = std::max(target.ungapped_score[f], hit->score);
 		if (!diagonal_segments[f].empty() && diagonal_segments[f].back().diag() == hit->diag() && diagonal_segments[f].back().subject_end() >= hit->j)
 			continue;
-		const int8_t* cbs = use_hauser ? query_cb[f].int8.data() : nullptr;
-		const DiagonalSegment d = xdrop_ungapped(query_seq[f], cbs, target.seq, hit->i, hit->j, with_diag_filter);
-		if (d.score > 0)
+		//std::cout << hit->i << " " << hit->j << std::endl;
+		stats.inc(Statistics::ADJACENCY_FILTERED_SEED_HITS);
+		const DiagonalSegment d = xdrop_ungapped(query.sequence[f], query.composition_bias(f), target.seq, hit->i, hit->j, reseek ? config.reseek_raw_ungapped_xdrop : config.raw_ungapped_xdrop, with_diag_filter);
+		if (d.score >= (reseek ? query.ungapped_cutoff : 1)) {
 			diagonal_segments[f].push_back(d);
+			stats.inc(Statistics::UNGAPPED_EXTENSION_FILTERED_SEED_HITS);
+		}
 	}
 
 	if (with_diag_filter) {
-		const ApproxHsp h = Chaining::hamming_ext(diagonal_segments[0].begin(), diagonal_segments[0].end(), query_seq[0].length(), target.seq.length(), !cfg.lin_stage1_target && !config.lin_stage1_query);
+		const ApproxHsp h = Chaining::hamming_ext(diagonal_segments[0].begin(), diagonal_segments[0].end(), query.sequence[0].length(), target.seq.length(), !cfg.lin_stage1_target && !config.lin_stage1_query);
 		if (h.score > 0) {
 			target.done = true;
 			target.hsp[0].push_back(h);
@@ -111,15 +140,15 @@ WorkTarget ungapped_stage(FlatArray<SeedHit>::DataIterator begin, FlatArray<Seed
 		if (diagonal_segments[frame].empty())
 			continue;
 		std::stable_sort(diagonal_segments[frame].begin(), diagonal_segments[frame].end(), DiagonalSegment::cmp_diag);
-		tie(std::ignore, target.hsp[frame]) = Chaining::run(query_seq[frame], target.seq, diagonal_segments[frame].begin(), diagonal_segments[frame].end(), config.log_extend, frame);
+		tie(std::ignore, target.hsp[frame]) = Chaining::run(query.sequence[frame], target.seq, diagonal_segments[frame].begin(), diagonal_segments[frame].end(), config.log_extend, frame);
 		target.hsp[frame].sort(ApproxHsp::cmp_diag);
 	}
 	return target;
 }
 
-void ungapped_stage_worker(size_t i, size_t thread_id, const Sequence *query_seq, const HauserCorrection *query_cb, const ::Stats::Composition* query_comp, FlatArray<SeedHit>::Iterator seed_hits, vector<uint32_t>::const_iterator target_block_ids, Loc max_target_len, vector<WorkTarget> *out, mutex *mtx, Statistics* stat, const Block* targets, const Mode mode, std::pmr::monotonic_buffer_resource* pool, const Search::Config *cfg) {
+void ungapped_stage_worker(size_t i, size_t thread_id, const Query* query, FlatArray<SeedHit>::Iterator seed_hits, vector<uint32_t>::const_iterator target_block_ids, Loc max_target_len, vector<WorkTarget> *out, mutex *mtx, Statistics* stat, const Block* targets, const Mode mode, std::pmr::monotonic_buffer_resource* pool, const Search::Config *cfg) {
 	Statistics stats;
-	WorkTarget target = ungapped_stage(seed_hits.begin(i), seed_hits.end(i), query_seq, query_cb, *query_comp, target_block_ids[i], max_target_len, stats, *targets, mode, *pool, *cfg);
+	WorkTarget target = ungapped_stage(seed_hits.begin(i), seed_hits.end(i), *query, target_block_ids[i], max_target_len, stats, *targets, mode, *pool, *cfg);
 	{
 		std::lock_guard<mutex> guard(*mtx);
 		out->push_back(std::move(target));
@@ -127,7 +156,7 @@ void ungapped_stage_worker(size_t i, size_t thread_id, const Sequence *query_seq
 	}
 }
 
-vector<WorkTarget> ungapped_stage(const Sequence *query_seq, const HauserCorrection *query_cb, const ::Stats::Composition& query_comp, FlatArray<SeedHit>::Iterator seed_hits, FlatArray<SeedHit>::Iterator seed_hits_end, vector<uint32_t>::const_iterator target_block_ids, DP::Flags flags, Statistics& stat, const Block& target_block, const Mode mode, std::pmr::monotonic_buffer_resource& pool, const Search::Config &cfg) {
+vector<WorkTarget> ungapped_stage(const Query& query, FlatArray<SeedHit>::Iterator seed_hits, FlatArray<SeedHit>::Iterator seed_hits_end, vector<uint32_t>::const_iterator target_block_ids, DP::Flags flags, Statistics& stat, const Block& target_block, const Mode mode, std::pmr::monotonic_buffer_resource& pool, const Search::Config &cfg) {
 	vector<WorkTarget> targets;
 	const int64_t n = seed_hits_end - seed_hits;
 	if(n == 0)
@@ -140,17 +169,17 @@ vector<WorkTarget> ungapped_stage(const Sequence *query_seq, const HauserCorrect
 	targets.reserve(n);
 	if (flag_any(flags, DP::Flags::PARALLEL)) {
 		mutex mtx;
-		Util::Parallel::scheduled_thread_pool_auto(config.threads_, n, ungapped_stage_worker, query_seq, query_cb, &query_comp, seed_hits, target_block_ids, max_target_len, &targets, &mtx, &stat, &target_block, mode, &pool, &cfg);
+		Util::Parallel::scheduled_thread_pool_auto(config.threads_, n, ungapped_stage_worker, &query, seed_hits, target_block_ids, max_target_len, &targets, &mtx, &stat, &target_block, mode, &pool, &cfg);
 	}
 	else {
 		for (int64_t i = 0; i < n; ++i) {
-			/*const double len_ratio = query_seq->length_ratio(target_block.seqs()[target_block_ids[i]]);
+			/*const double len_ratio = query.sequence[0].length_ratio(target_block.seqs()[target_block_ids[i]]);
 			if (len_ratio < config.min_length_ratio)
 				continue;*/
-			targets.push_back(ungapped_stage(seed_hits.begin(i), seed_hits.end(i), query_seq, query_cb, query_comp, target_block_ids[i], max_target_len, stat, target_block, mode, pool, cfg));
+			targets.push_back(ungapped_stage(seed_hits.begin(i), seed_hits.end(i), query, target_block_ids[i], max_target_len, stat, target_block, mode, pool, cfg));
 			for (const ApproxHsp& hsp : targets.back().hsp[0]) {
-				Geo::assert_diag_bounds(hsp.d_max, query_seq[0].length(), targets.back().seq.length());
-				Geo::assert_diag_bounds(hsp.d_min, query_seq[0].length(), targets.back().seq.length());
+				Geo::assert_diag_bounds(hsp.d_max, query.sequence[0].length(), targets.back().seq.length());
+				Geo::assert_diag_bounds(hsp.d_min, query.sequence[0].length(), targets.back().seq.length());
 				assert(hsp.score > 0);
 				assert(hsp.max_diag.score > 0);
 			}

@@ -50,8 +50,8 @@ struct Block {
 			throw std::runtime_error("Block::ids()");
 		return ids_;
 	}
-	void reserve_ids(uint64_t letters, BlockId entries) {
-		ids_.reserve(entries, letters);
+	void reserve_ids(uint64_t letters, BlockId entries, bool log_message = false) {
+		ids_.reserve(entries, letters, log_message);
 	}
 	const SequenceSet& source_seqs() const {
 		return source_seqs_;

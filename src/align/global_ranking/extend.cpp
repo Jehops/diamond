@@ -56,9 +56,9 @@ void extend_query(const QueryList& query_list, const TargetMap& db2block_id, con
 	}
 	
 	DP::Flags flags = DP::Flags::FULL_MATRIX;
-	
+	const Extension::Query query(query_list.query_block_id, stats, cfg, pool);
 	vector<Match> matches = Extension::extend(
-		query_list.query_block_id,
+		query,
 		cfg,
 		stats,
 		flags,
@@ -139,9 +139,10 @@ void extend_query(BlockId source_query_block_id, const TargetMap& db2block_id, S
 		}
 
 		DP::Flags flags = DP::Flags::FULL_MATRIX;
+		const Extension::Query query(source_query_block_id, stats, cfg, pool);
 
 		vector<Match> matches = Extension::extend(
-			source_query_block_id,
+			query,
 			cfg,
 			stats,
 			flags,

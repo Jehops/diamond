@@ -21,14 +21,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
-#include "../multinode.h"
-#include "../volume.h"
+#include "multinode.h"
+#include "volume.h"
 #include "basic/config.h"
 #include "util/memory/memory_resource.h"
 #include "util/io/compressed_buffer.h"
-#include "../file_array.h"
-#include "../input_buffer.h"
-#include "../cluster.h"
+#include "file_array.h"
+#include "input_buffer.h"
+#include "cluster.h"
 
 using std::endl;
 using std::unordered_map;

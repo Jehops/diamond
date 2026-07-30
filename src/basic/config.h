@@ -78,7 +78,9 @@ struct Config
 	unsigned min_identities_;
 	unsigned min_identities2;
 	double ungapped_xdrop;
+	double reseek_ungapped_xdrop;
 	int		raw_ungapped_xdrop;
+	int		reseek_raw_ungapped_xdrop;
 	unsigned	min_compressed_identities;
 	int		min_seed_score;
 	unsigned	seed_signatures;
@@ -217,7 +219,7 @@ struct Config
 	double gapped_filter_evalue1;
 	size_t ext_chunk_size;
 	double ext_min_yield;
-	string ext_;
+	string extension_mode;
 	int full_sw_len;
 	double relaxed_evalue_factor;
 	string type;
@@ -278,7 +280,6 @@ struct Config
 	Loc minimizer_window_;
 	bool lin_stage1_query;
 	bool lin_stage1_target;
-	bool lin_stage1_combo;
 	int64_t min_task_trace_pts;
 	Loc sketch_size;
 	string soft_masking;
@@ -356,7 +357,6 @@ struct Config
 	double promiscuous_seed_ratio;
 	bool oid_output;
 	bool trace_pt_membuf;
-	bool linclust_banded_ext;
 	Loc min_query_len;
 	bool hit_membuf;
 	size_t minichunk;
@@ -372,6 +372,10 @@ struct Config
 	std::string taxdump;
 	bool fpu_compat;
 	bool single_step;
+	bool reseek_diags;
+	double word_threshold;
+	int double_hit_window;
+	uint64_t oid_title_max;
 
     SequenceType dbtype;
 

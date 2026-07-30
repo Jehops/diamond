@@ -30,8 +30,6 @@ typedef void Stage1KernelPackedLoc(const ::PackedLoc*, ::uint_fast32_t, const ::
 typedef void Stage1KernelPackedLocId(const ::PackedLocId*, ::uint_fast32_t, const ::PackedLocId*, ::uint_fast32_t, ::Search::WorkSet&);
 
 static Stage1KernelPackedLocId* stage1_dispatch(const Search::Config* cfg, PackedLocId) {
-	if (config.lin_stage1_combo)
-		return stage1_longest_combo_lin;
 	if (config.lin_stage1_query) {
 		return cfg->min_length_ratio > 0.0 ? stage1_mutual_cov_query_lin : stage1_query_lin_ranked;
 	}

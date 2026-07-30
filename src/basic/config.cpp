@@ -263,7 +263,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("motif-masking", 0, "softmask abundant motifs (0/1)", motif_masking)
 		("approx-id", 0, "minimum approx. identity% to report an alignment/to cluster sequences", approx_min_id)
 		("id", 0, "minimum identity% to report an alignment", min_id)
-		("ext", 0, "Extension mode (banded-fast/banded-slow/full/global/none)", ext_)
+		("ext", 0, "Extension mode (banded-fast/banded-slow/full/global/none)", extension_mode)
 		("min-len-ratio", 0, "sequence length ratio cutoff for mutual coverage", min_length_ratio)
 		("hamming-dist-boundary-check", 0, "Clip hamming distance filter against sequence boundaries", hamming_dist_boundary_check);
 
@@ -411,7 +411,6 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("query-match-distance-threshold", 0, "Matrix adjust threshold", query_match_distance_threshold, -1.0)
 		("length-ratio-threshold", 0, "Matrix adjust threshold", length_ratio_threshold, -1.0)
 		("cbs-angle", 0, "Matrix adjust threshold", cbs_angle, -1.0)
-		("linclust-banded-ext", 0, "Use banded instead of full matrix DP for linear searches", linclust_banded_ext)
 		("hit-membuf", 0, "Buffer intermediate hits in memory", hit_membuf)
 		("fpu-compat", 0, "Floating point operations compatibility mode", fpu_compat);
 
@@ -430,8 +429,8 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("id2", 0, "minimum number of identities for stage 1 hit", min_identities_)
 		("linsearch", 0, "only consider seed hits against longest target for identical seeds", lin_stage1_target)
 		("lin-stage1", 0, "only consider seed hits against longest query for identical seeds", lin_stage1_query)
-		("lin-combo", 0, "only consider seed hits against the longest of query and target for identical seeds", lin_stage1_combo)
 		("xdrop", 'x', "xdrop for ungapped alignment", ungapped_xdrop, 12.3)
+		("reseek-xdrop", 0, "xdrop for ungapped alignment (using --reseek-diags)", reseek_ungapped_xdrop, 20.0)
 		("ungapped-evalue", 0, "E-value threshold for ungapped filter (auto)", ungapped_evalue_, -1.0)
 		("ungapped-evalue-short", 0, "E-value threshold for ungapped filter (short reads) (auto)", ungapped_evalue_short_, -1.0)
 		("short-query-ungapped-bitscore", 0, "Bit score threshold for ungapped alignments for short queries", short_query_ungapped_bitscore, 25.0)
@@ -439,6 +438,9 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("band", 0, "band for dynamic programming computation", padding)
 		("shape-mask", 0, "seed shapes", shape_mask)
 		("taxdump", 0 , "directory containing NCBI taxdump files", taxdump)
+		("reseek-diags", 0, "recompute diagonals prior to chaining", reseek_diags)
+		("word-threshold", 0, "word threshold in bits", word_threshold)
+		("double-hit-window", 0, "window for double hits", double_hit_window, 40)
 		("multiprocessing", 0, "enable distributed-memory parallel processing", multiprocessing)
 		("mp-init", 0, "initialize multiprocessing run", mp_init)
 		("mp-recover", 0, "enable continuation of interrupted multiprocessing run", mp_recover)
@@ -859,6 +861,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 			tmpdir = extract_dir(output_file);
 
 		raw_ungapped_xdrop = score_matrix.rawscore(ungapped_xdrop);
+		reseek_raw_ungapped_xdrop = score_matrix.rawscore(reseek_ungapped_xdrop);
 		*log_stream << "CPU features detected: " << SIMD::features() << endl;
 	}
 
@@ -880,6 +883,8 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
     dna_extension = from_string<DNAExtensionAlgo>(dna_extension_string);
 #endif
 	Translator::init(query_gencode);
+
+	oid_title_max = 0;
 
 	if (command == blastx || command == blastn)
 		input_value_traits = nucleotide_traits;

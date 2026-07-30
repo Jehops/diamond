@@ -130,7 +130,7 @@ unsigned QueryMapper::count_targets()
 			}
 		}
 		else {
-			const DiagonalSegment d = xdrop_ungapped(query_seq(frame), nullptr, metadata.target->seqs()[l.first], hits[i].seed_offset_, (int)l.second, false);
+			const DiagonalSegment d = xdrop_ungapped(query_seq(frame), nullptr, metadata.target->seqs()[l.first], hits[i].seed_offset_, (int)l.second, config.raw_ungapped_xdrop, false);
 			if (d.score > 0) {
 				if (l.first != subject_id) {
 					subject_id = l.first;

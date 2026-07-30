@@ -83,9 +83,9 @@ struct ActiveTarget {
 
 using TargetVec = vector<ActiveTarget>;
 
-static TargetVec recompute_alt_hsps(const Sequence* query_seq, const int query_source_len, const HauserCorrection* query_cb, TargetVec& targets, const HspValues v, Statistics& stats) {
+static TargetVec recompute_alt_hsps(const Query& query, TargetVec& targets, const HspValues v, Statistics& stats) {
 	array<DP::Targets, MAX_CONTEXT> dp_targets;
-	const Loc qlen = query_seq[0].length();
+	const Loc qlen = query.sequence[0].length();
 	for (auto it = targets.begin(); it != targets.end(); ++it) {
 		const int64_t dp_size = (int64_t)qlen * (int64_t)it->match->seq.length();
 		const ::Stats::TargetMatrix* matrix = it->match->matrix.get();
@@ -99,8 +99,7 @@ static TargetVec recompute_alt_hsps(const Sequence* query_seq, const int query_s
 	}
 
 	for (int32_t context = 0; context < align_mode.query_contexts; ++context) {
-		const int8_t* cbs = ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[context].int8.data() : nullptr;
-		DP::Params params{ query_seq[context], "", Frame(context), query_source_len, cbs, DP::Flags::FULL_MATRIX, false, 0, -1,
+		DP::Params params{ query.sequence[context], "", Frame(context), query.source_length, query.composition_bias(context), DP::Flags::FULL_MATRIX, false, 0, -1,
 			v, stats, nullptr };
 		list<Hsp> hsp = DP::BandedSwipe::swipe(dp_targets[context], params);
 		while (!hsp.empty()) {
@@ -123,7 +122,7 @@ static TargetVec recompute_alt_hsps(const Sequence* query_seq, const int query_s
 	return out;
 }
 
-void recompute_alt_hsps(vector<Match>::iterator begin, vector<Match>::iterator end, const Sequence* query, const int query_source_len, const HauserCorrection* query_cb, const HspValues v, Statistics& stats) {
+void recompute_alt_hsps(vector<Match>::iterator begin, vector<Match>::iterator end, const Query& query, const HspValues v, Statistics& stats) {
 	if (config.max_hsps == 1)
 		return;
 	TargetVec targets;
@@ -137,7 +136,7 @@ void recompute_alt_hsps(vector<Match>::iterator begin, vector<Match>::iterator e
 		t.copy_seq(target_seqs, i);
 
 	while(!targets.empty())
-		targets = recompute_alt_hsps(query, query_source_len, query_cb, targets, v, stats);
+		targets = recompute_alt_hsps(query, targets, v, stats);
 }
 
 }

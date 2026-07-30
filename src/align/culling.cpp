@@ -168,14 +168,14 @@ bool filter_hsp(Hsp& hsp, int source_query_len, const char *query_title, int sub
 			&& strcmp(query_title, subject_title) == 0);
 }
 
-void Match::apply_filters(int source_query_len, const char *query_title, const Sequence& query_seq, const double query_self_aln_score, const Block& targets, const OutputFormat* output_format)
+void Match::apply_filters(const Query& query, const Block& targets, const OutputFormat* output_format)
 {
 	const char* title = config.no_self_hits ? targets.ids()[target_block_id] : nullptr;
 	const Sequence seq = targets.seqs()[target_block_id];
 	const int len = seq.length();
 	const double self_aln = targets.has_self_aln() ? targets.self_aln_score(target_block_id) : 0.0;
 	for (list<Hsp>::iterator i = hsp.begin(); i != hsp.end();) {
-		if (filter_hsp(*i, source_query_len, query_title, len, title, query_seq, seq, query_self_aln_score, self_aln, output_format))
+		if (filter_hsp(*i, query.source_length, query.title, len, title, query.sequence[0], seq, query.self_alignment_score, self_aln, output_format))
 			i = hsp.erase(i);
 		else
 			++i;
@@ -190,10 +190,10 @@ void culling(std::vector<Target>& targets, bool sort_only, const Search::Config&
 		targets.erase(output_range(targets.begin(), targets.end(), cfg), targets.end());
 }
 
-void apply_filters(std::vector<Match>::iterator begin, std::vector<Match>::iterator end, int source_query_len, const char* query_title, const double query_self_aln_score, const Sequence& query_seq, const Search::Config& cfg) {
+void apply_filters(std::vector<Match>::iterator begin, std::vector<Match>::iterator end, const Query& query, const Search::Config& cfg) {
 	if (config.min_id > 0 || config.approx_min_id.get(0.0) > 0 || config.query_cover > 0 || config.subject_cover > 0 || config.query_or_target_cover > 0 || config.no_self_hits || config.cluster_threshold.present())
 		for (auto i = begin; i < end; ++i)
-			i->apply_filters(source_query_len, query_title, query_seq, query_self_aln_score, *cfg.target, cfg.output_format.get());
+			i->apply_filters(query, *cfg.target, cfg.output_format.get());
 }
 
 void culling(std::vector<Match>& targets, const Search::Config& cfg) {

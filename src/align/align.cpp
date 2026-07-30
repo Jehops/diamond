@@ -164,7 +164,8 @@ static void align_worker(HitIterator* hit_it, Search::Config* cfg, int64_t next)
 		DpStat dp_stat;
 		const bool parallel = config.swipe_all && (cfg->target->seqs().size() >= cfg->query->seqs().size());
 
-		for (auto h = hits.cbegin(); h < hits.cend(); ++h) {
+		for (auto h = hits.cbegin(); h < hits.cend(); ++h) {			
+			pool.release();
 			if (config.frame_shift != 0) {
 				TextBuffer* buf = legacy_pipeline(*h, *cfg, stat);
 				output_sink->push(h->query, buf);

@@ -28,7 +28,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "data/string_set.h"
 #include "util/options/option.h"
 #include "basic/config.h"
-#include "stats/hauser_correction.h"
 #include "target.h"
 #include "util/log_stream.h"
 #include "util/util.h"
@@ -46,6 +45,7 @@ using std::endl;
 using std::make_move_iterator;
 using std::any_of;
 using std::numeric_limits;
+using std::runtime_error;
 using std::tie;
 using std::min;
 
@@ -58,6 +58,41 @@ const SEMap<Extension::Mode> EnumTraits<Extension::Mode>::from_string = {
 };
 
 namespace Extension {
+
+Query::Query(BlockId block_id, Statistics& stats, const Search::Config& cfg, std::pmr::monotonic_buffer_resource& pool) :
+	block_id(block_id),
+	title(cfg.query->ids()[block_id]),
+	source_length(align_mode.query_translated ? (int)cfg.query->source_seqs()[block_id].length() : (int)cfg.query->seqs()[block_id].length()),
+	true_aa_length(0),
+	self_alignment_score(cfg.query->has_self_aln() ? cfg.query->self_aln_score(block_id) : 0.0)
+{
+	const unsigned contexts = align_mode.query_contexts;
+	sequence.reserve(contexts);
+	for (unsigned i = 0; i < contexts; ++i)
+		sequence.push_back(cfg.query->seqs()[block_id * contexts + i]);
+	true_aa_length = ::Stats::count_true_aa(sequence.front());
+
+	const Loc qlen = sequence.front().length();
+	if (qlen <= config.short_query_max_len)
+		ungapped_cutoff = score_matrix.rawscore(config.short_query_ungapped_bitscore);
+	else
+		ungapped_cutoff = score_matrix.rawscore(score_matrix.bitscore_norm(cfg.ungapped_evalue, qlen));
+	ungapped_cutoff = std::max(ungapped_cutoff, 1);
+
+	const unsigned cbs = static_cast<unsigned>(config.comp_based_stats_.get(Stats::DEFAULT_CBS));
+	if (::Stats::CBS::hauser(cbs)) {
+		hauser_correction.reserve(contexts);
+		for (const Sequence& seq : sequence)
+			hauser_correction.emplace_back(seq);
+	}
+	if (::Stats::CBS::matrix_adjust(cbs))
+		composition = ::Stats::composition(sequence.front());
+	if ((config.reseek_diags || config.lin_stage1_query || config.lin_stage1_target) && (cfg.extension_mode == Extension::Mode::BANDED_FAST || cfg.extension_mode == Extension::Mode::BANDED_SLOW)) {
+		if (sequence.size() > 1)
+			throw runtime_error("Reseeking diagonals is not supported for translated queries.");
+		seqindex = std::make_unique<Seqindex>(sequence.front(), cfg.keyword_length, cfg.keyword_threshold, pool, stats);
+	}
+}
 
 const std::map<Sensitivity, Mode> default_ext_mode = {
 	{ Sensitivity::FASTER, Mode::BANDED_FAST},
@@ -147,15 +182,14 @@ static Hsp seed_only_hsp(const SeedHit& hit, unsigned query_source_len) {
 	return hsp;
 }
 
-static vector<Match> seed_only_matches(BlockId query_id, const Search::Config& cfg, SeedHitList& l) {
-	const unsigned query_source_len = align_mode.query_translated ? (unsigned)cfg.query->source_seqs()[query_id].length() : (unsigned)cfg.query->seqs()[query_id].length();
+static vector<Match> seed_only_matches(const Query& query, const Search::Config& cfg, SeedHitList& l) {
 	vector<Match> matches;
 	matches.reserve(l.target_scores.size());
 	for (const TargetScore& target_score : l.target_scores) {
 		const BlockId target_block_id = l.target_block_ids[target_score.target];
 		Match match(target_block_id, cfg.target->seqs()[target_block_id], nullptr, target_score.score, target_score.score, 0.0);
 		for (auto i = l.seed_hits.begin(target_score.target); i < l.seed_hits.end(target_score.target); ++i)
-			match.hsp.push_back(seed_only_hsp(*i, query_source_len));
+			match.hsp.push_back(seed_only_hsp(*i, query.source_length));
 		match.hsp.sort();
 		if (config.max_hsps > 0 && match.hsp.size() > config.max_hsps)
 			match.hsp.resize(config.max_hsps);
@@ -180,11 +214,7 @@ static size_t lazy_masking(std::vector<uint32_t>::const_iterator target_block_id
 	return n;
 }
 
-static vector<Target> extend_chunk(BlockId query_id,
-	const Sequence* query_seq,
-	int source_query_len,
-	const HauserCorrection* query_cb,
-	const ::Stats::Composition& query_comp,
+static vector<Target> extend_chunk(const Query& query,
 	FlatArray<SeedHit>::Iterator seed_hits,
 	FlatArray<SeedHit>::Iterator seed_hits_end,
 	vector<uint32_t>::const_iterator target_block_ids,
@@ -203,9 +233,9 @@ static vector<Target> extend_chunk(BlockId query_id,
 		stat.inc(Statistics::MASKED_LAZY, lazy_masking(target_block_ids, target_block_ids + n, *cfg.target, cfg.target_masking));
 
 	pair<FlatArray<SeedHit>, vector<uint32_t>> gf;
-	if (cfg.gapped_filter_evalue > 0.0 && config.global_ranking_targets == 0 && (!align_mode.query_translated || query_seq[0].length() >= GAPPED_FILTER_MIN_QLEN)) {
+	if (cfg.gapped_filter_evalue > 0.0 && config.global_ranking_targets == 0 && (!align_mode.query_translated || query.sequence[0].length() >= GAPPED_FILTER_MIN_QLEN)) {
 		timer.go("Computing gapped filter");
-		gf = gapped_filter(query_seq, query_cb, seed_hits, seed_hits_end, target_block_ids, stat, flags, cfg);
+		gf = gapped_filter(query, seed_hits, seed_hits_end, target_block_ids, stat, flags, cfg);
 		if (!flag_any(flags, DP::Flags::PARALLEL))
 			stat.inc(Statistics::TIME_GAPPED_FILTER, timer.microseconds());
 		seed_hits = gf.first.begin();
@@ -215,16 +245,16 @@ static vector<Target> extend_chunk(BlockId query_id,
 	stat.inc(Statistics::TARGET_HITS3, seed_hits_end - seed_hits);
 
 	timer.go("Computing chaining");
-	vector<WorkTarget> targets = ungapped_stage(query_seq, query_cb, query_comp, seed_hits, seed_hits_end, target_block_ids, flags, stat, *cfg.target, cfg.extension_mode, pool, cfg);
+	vector<WorkTarget> targets = ungapped_stage(query, seed_hits, seed_hits_end, target_block_ids, flags, stat, *cfg.target, cfg.extension_mode, pool, cfg);
 	if (!flag_any(flags, DP::Flags::PARALLEL))
 		stat.inc(Statistics::TIME_CHAINING, timer.microseconds());
 
-	auto ret = align(targets, query_seq, cfg.query->ids()[query_id], query_cb, source_query_len, flags, hsp_values, cfg.extension_mode, *cfg.thread_pool, cfg, stat, pool);
+	auto ret = align(targets, query, flags, hsp_values, cfg.extension_mode, *cfg.thread_pool, cfg, stat, pool);
 	return ret;
 }
 
 vector<Match> extend(
-	BlockId query_id,
+	const Query& query,
 	const Search::Config& cfg,
 	Statistics& stat,
 	DP::Flags flags,
@@ -232,30 +262,12 @@ vector<Match> extend(
 	std::pmr::monotonic_buffer_resource& pool)
 {
 	const unsigned UNIFIED_TARGET_LEN = 50;
-	const unsigned contexts = align_mode.query_contexts;
-	vector<Sequence> query_seq;
-	vector<HauserCorrection> query_cb;
-	const char* query_title = cfg.query->ids()[query_id];
-
 	if (config.log_query || (flag_any(flags, DP::Flags::PARALLEL) && !config.swipe_all))
-		*log_stream << "Query=" << query_title << " Hits=" << l.seed_hits.data_size() << endl;
+		*log_stream << "Query=" << query.title << " Hits=" << l.seed_hits.data_size() << endl;
 
-	for (unsigned i = 0; i < contexts; ++i)
-		query_seq.push_back(cfg.query->seqs()[query_id * contexts + i]);
-	const unsigned query_len = (unsigned)query_seq.front().length();
-
-	if (::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS))) {
-		for (unsigned i = 0; i < contexts; ++i)
-			query_cb.emplace_back(query_seq[i]);
-	}
-	::Stats::Composition query_comp;
-	if (::Stats::CBS::matrix_adjust(config.comp_based_stats_.get(Stats::DEFAULT_CBS)))
-		query_comp = ::Stats::composition(query_seq[0]);
-
-	const int source_query_len = align_mode.query_translated ? (int)cfg.query->source_seqs()[query_id].length() : (int)cfg.query->seqs()[query_id].length();
-	const double self_aln_score = cfg.query->has_self_aln() ? cfg.query->self_aln_score(query_id) : 0.0;
+	const unsigned query_len = (unsigned)query.sequence.front().length();
 	const size_t target_count = l.target_block_ids.size();
-	if (cfg.extension_mode == Mode::NONE) { 		std::sort(l.target_scores.begin(), l.target_scores.end()); 		return seed_only_matches(query_id, cfg, l); 	}
+	if (cfg.extension_mode == Mode::NONE) { 		std::sort(l.target_scores.begin(), l.target_scores.end()); 		return seed_only_matches(query, cfg, l); 	}
 	const int64_t chunk_size = ranking_chunk_size(target_count, cfg.target->seqs().letters(), cfg.max_target_seqs);
 	vector<TargetScore>::const_iterator i0 = l.target_scores.cbegin(), i1 = i0 + std::min((ptrdiff_t)chunk_size, l.target_scores.cend() - i0);
 
@@ -297,11 +309,7 @@ vector<Match> extend(
 			}
 
 			vector<Target> v = extend_chunk(
-				query_id,
-				query_seq.data(),
-				source_query_len,
-				query_cb.data(),
-				query_comp,
+				query,
 				multi_chunk ? seed_hits_chunk.begin() : l.seed_hits.begin(),
 				multi_chunk ? seed_hits_chunk.end() : l.seed_hits.end(),
 				multi_chunk ? target_block_ids_chunk.cbegin() : l.target_block_ids.cbegin(),
@@ -326,17 +334,17 @@ vector<Match> extend(
 		} while (i0 < l.target_scores.cend() && !ranking_terminate(new_hits, previous_tail_score, (i1 - 1)->score, i1 - l.target_scores.cbegin(), aligned_targets.size()));
 
 		if (config.swipe_all)
-			aligned_targets = full_db_align(query_seq.data(), query_cb.data(), flags, HspValues::NONE, stat, *cfg.target);
+			aligned_targets = full_db_align(query, flags, HspValues::NONE, stat, *cfg.target);
 
 		culling(aligned_targets, !first_round_culling, cfg);
 		stat.inc(Statistics::TARGET_HITS5, aligned_targets.size());
 		
-		vector<Match> round_matches = align(aligned_targets, matches.size(), query_seq.data(), query_title, query_cb.data(), source_query_len, self_aln_score, flags, first_round_hspv, first_round_culling, stat, cfg);
+		vector<Match> round_matches = align(aligned_targets, matches.size(), query, flags, first_round_hspv, first_round_culling, stat, cfg);
 		matches.insert(matches.end(), make_move_iterator(round_matches.begin()), make_move_iterator(round_matches.end()));
 	} while (config.toppercent.blank() && (int64_t)matches.size() < config.max_target_seqs_.get(DEFAULT_MAX_TARGET_SEQS) && i0 < l.target_scores.cend() && new_hits_ev && (!config.mapany || (config.mapany && matches.empty())));
 
-	if (add_self_aln(cfg) && !any_of(matches.cbegin(), matches.cend(), [query_id](const Match& m) { return m.target_block_id == query_id; }))
-		matches.push_back(Match::self_match(query_id, query_seq[0]));
+	if (add_self_aln(cfg) && !any_of(matches.cbegin(), matches.cend(), [&query](const Match& m) { return m.target_block_id == query.block_id; }))
+		matches.push_back(Match::self_match(query.block_id, query.sequence[0]));
 
 	culling(matches, cfg);
 
@@ -344,16 +352,13 @@ vector<Match> extend(
 }
 
 vector<Match> extend(BlockId query_id, Search::Hit* begin, Search::Hit* end, const Search::Config &cfg, Statistics &stat, DP::Flags flags, std::pmr::monotonic_buffer_resource& pool) {
+	const Query query(query_id, stat, cfg, pool);
 	TaskTimer timer(flag_any(flags, DP::Flags::PARALLEL) ? config.target_parallel_verbosity : UINT_MAX);
 	timer.go("Loading seed hits");
 	SeedHitList l = load_hits(begin, end, cfg.target->seqs());
-	const unsigned contexts = align_mode.query_contexts;
-	vector<Sequence> query_seq;
-	for (unsigned i = 0; i < contexts; ++i)
-		query_seq.push_back(cfg.query->seqs()[query_id * contexts + i]);
 	stat.inc(Statistics::TARGET_HITS0, l.target_block_ids.size());
 	if (config.hamming_dist_boundary_check) {
-		filter_hamming_boundary_crossings(l, query_seq.data(), query_seq.front().length(), cfg.target->seqs(), cfg.hamming_filter_id);
+		filter_hamming_boundary_crossings(l, query.sequence.data(), query.sequence.front().length(), cfg.target->seqs(), cfg.hamming_filter_id);
 		stat.inc(Statistics::TARGET_HITS_HDF, l.target_block_ids.size());
 	}
 	stat.inc(Statistics::TIME_LOAD_HIT_TARGETS, timer.microseconds());
@@ -365,7 +370,7 @@ vector<Match> extend(BlockId query_id, Search::Hit* begin, Search::Hit* end, con
 			return vector<Match>();
 		if (add_self_aln(cfg)) {
 			vector<Match> r;
-			Match match = Match::self_match(query_id, cfg.query->seqs()[query_id]);
+			Match match = Match::self_match(query.block_id, query.sequence[0]);
 			r.push_back(std::move(match));
 			return r;
 		}
@@ -382,7 +387,7 @@ vector<Match> extend(BlockId query_id, Search::Hit* begin, Search::Hit* end, con
 			return GlobalRanking::ranking_list(query_id, l.target_scores.begin(), l.target_scores.end(), l.target_block_ids.begin(), l.seed_hits, cfg);
 	}
 
-	vector<Match> r = extend(query_id, cfg, stat, flags, l, pool);
+	vector<Match> r = extend(query, cfg, stat, flags, l, pool);
 	return r;
 }
 

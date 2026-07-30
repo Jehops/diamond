@@ -283,7 +283,7 @@ void multinode() {
 		config.max_evalue = i == steps.size() - 1 ? evalue_cutoff : std::min(evalue_cutoff, CASCADED_ROUND_MAX_EVALUE);
 		config.anchored_swipe = anchored_swipe && (linclust || !config.lin_stage1_query);
 		if (anchored_swipe)
-			config.ext_ = "banded-fast";
+			config.extension_mode = "banded-fast";
 		const int ccd = Cluster::round_ccd(ccd_arg, i, steps.size(), linear_round);
 		config.connected_component_depth.clear();
 		config.connected_component_depth.push_back(std::to_string(ccd));

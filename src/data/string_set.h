@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <assert.h>
 #include <vector>
 #include <algorithm>
+#include "util/log_stream.h"
+#include "util/memory/vmbuffer.h"
 
 template<typename T, char padding_char, size_t padding_len = 1lu>
 struct StringSetBase
@@ -35,14 +37,17 @@ struct StringSetBase
 	static const char DELIMITER = padding_char;
 
 	StringSetBase():
-		data_ (PERIMETER_PADDING, padding_char)
+		data_ (PERIMETER_PADDING, padding_char, HugePages::Transparent)
 	{
 		limits_.push_back(PERIMETER_PADDING);
 	}
 
-	void finish_reserve()
+	void finish_reserve(bool log_message = false)
 	{
-		data_.resize(raw_len() + PERIMETER_PADDING);
+		const size_t r = raw_len() + PERIMETER_PADDING;
+		if (log_message)
+			*log_stream << "finish_reserve r=" << r << " capacity=" << data_.capacity() << std::endl;
+		data_.resize(r);
 		std::fill(data_.begin() + raw_len(), data_.end(), padding_char);
 		data_.shrink_to_fit();
 		limits_.shrink_to_fit();
@@ -53,9 +58,12 @@ struct StringSetBase
 		limits_.push_back(raw_len() + n + padding_len);
 	}
 
-	void reserve(size_t entries, size_t length) {
+	void reserve(size_t entries, size_t length, bool log_message = false) {
 		limits_.reserve(entries + 1);
-		data_.reserve(length + 2 * PERIMETER_PADDING + entries * padding_len);
+		const size_t d = length + 2 * PERIMETER_PADDING + entries * padding_len;
+		data_.reserve(d);
+		if (log_message)
+			*log_stream << "reserve=" << (entries + 1) * sizeof(Pos) + d * sizeof(T) << std::endl;
 	}
 
 	void clear() {
@@ -73,8 +81,8 @@ struct StringSetBase
 	{
 		assert(begin <= end);
 		limits_.push_back(raw_len() + (end - begin) + padding_len);
-		data_.insert(data_.end(), begin, end);
-		data_.insert(data_.end(), padding_len, padding_char);
+		data_.append(begin, end);
+		data_.append(padding_len, padding_char);
 	}
 
 	void append(const StringSetBase& s, bool remove_padding = false) {
@@ -88,10 +96,10 @@ struct StringSetBase
 			limits_.push_back(*it++ + offset);
 		if (remove_padding) {
 			data_.resize(data_.size() - PERIMETER_PADDING);
-			data_.insert(data_.end(), s.ptr(0), s.end(n - 1) + 1 + PERIMETER_PADDING);
+			data_.append(s.ptr(0), s.end(n - 1) + 1 + PERIMETER_PADDING);
 		}
 		else
-			data_.insert(data_.end(), s.ptr(0), s.end(n - 1) + 1);
+			data_.append(s.ptr(0), s.end(n - 1) + 1);
 	}
 
 	template<typename It>
@@ -103,8 +111,8 @@ struct StringSetBase
 	void fill(size_t n, T v)
 	{
 		limits_.push_back(raw_len() + n + padding_len);
-		data_.insert(data_.end(), n, v);
-		data_.insert(data_.end(), padding_len, padding_char);
+		data_.append(n, v);
+		data_.append(padding_len, padding_char);
 	}
 
 	T* ptr(size_t i)
@@ -269,7 +277,7 @@ struct StringSetBase
 
 private:
 
-	std::vector<T> data_;
+	VmVector<T> data_;
 	std::vector<Pos> limits_;
 
 };

@@ -77,7 +77,7 @@ static void add_dp_targets(const Target& target, int target_idx, const Sequence*
 	}
 }
 
-vector<Match> align(vector<Target>& targets, const int64_t previous_matches, const Sequence* query_seq, const char* query_id, const HauserCorrection* query_cb, int source_query_len, double query_self_aln_score, DP::Flags flags, const HspValues first_round, const bool first_round_culling, Statistics& stat, const Search::Config& cfg) {
+vector<Match> align(vector<Target>& targets, const int64_t previous_matches, const Query& query, DP::Flags flags, const HspValues first_round, const bool first_round_culling, Statistics& stat, const Search::Config& cfg) {
 	static const int64_t MIN_STEP = 16;
 	vector<Match> r;
 	if (targets.empty())
@@ -90,7 +90,7 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 		if (copy_all || t.done)
 			r.emplace_back(t.block_id, t.seq, std::move(t.matrix), t.hsp, t.ungapped_score);
 	if (r.size() == targets.size()) {
-		apply_filters(r.begin(), r.end(), source_query_len, query_id, query_self_aln_score, query_seq[0], cfg);
+		apply_filters(r.begin(), r.end(), query, cfg);
 		return r;
 	}
 	
@@ -116,7 +116,7 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 		for (auto i = it; i < it + step_size; ++i) {
 			if (i->done)
 				continue;
-			add_dp_targets(*i, (int32_t)r.size(), query_seq, dp_targets, flags, hsp_values, cfg.extension_mode);
+			add_dp_targets(*i, (int32_t)r.size(), query.sequence.data(), dp_targets, flags, hsp_values, cfg.extension_mode);
 			r.emplace_back(i->block_id, i->seq, std::move(i->matrix), i->ungapped_score);
 		}
 
@@ -124,11 +124,11 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 			if (dp_targets[frame].empty())
 				continue;
 			DP::Params params{
-				query_seq[frame],
-				query_id,
+				query.sequence[frame],
+				query.title,
 				Frame(frame),
-				source_query_len,
-				::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
+				query.source_length,
+				query.composition_bias(frame),
 				flags,
 				false,
 				0,
@@ -145,7 +145,7 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 		for (int64_t i = matches_begin; i < (int64_t)r.size(); ++i)
 			r[i].inner_culling();
 
-		apply_filters(r.begin() + matches_begin, r.end(), source_query_len, query_id, query_self_aln_score, query_seq[0], cfg);
+		apply_filters(r.begin() + matches_begin, r.end(), query, cfg);
 		culling(r, cfg);
 
 		stat.inc(Statistics::TARGET_HITS6, step_size);
@@ -153,7 +153,7 @@ vector<Match> align(vector<Target>& targets, const int64_t previous_matches, con
 
 	} while (it < targets.end() && goon());
 
-	recompute_alt_hsps(r.begin(), r.end(), query_seq, source_query_len, query_cb, hsp_values, stat);
+	recompute_alt_hsps(r.begin(), r.end(), query, hsp_values, stat);
 	return r;
 }
 

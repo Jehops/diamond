@@ -41,8 +41,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace std { namespace pmr {
 
 struct memory_resource {};
-struct monotonic_buffer_resource : public memory_resource {};
+struct monotonic_buffer_resource : public memory_resource {
+    void release() {}
+};
 struct unsynchronized_pool_resource : public memory_resource {};
+
+inline memory_resource* get_default_resource() {
+    static memory_resource r;
+    return &r;
+}
 
 template<typename T>
 struct list : public std::list<T> {

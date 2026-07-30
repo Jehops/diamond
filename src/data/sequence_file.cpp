@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/string/tokenizer.h"
 #include "util/log_stream.h"
 #include "util/data_structures/queue.h"
+#include "util/heartbeat.h"
 
 using std::string;
 using std::endl;
@@ -96,7 +97,7 @@ int SequenceFile::raw_chunk_no() const {
 
 pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, const BitVector* filter, unordered_map<string, bool>* accs, const Chunk& chunk, bool load_taxids) {
 	const Loc SEQ_LEN_EST = 200;
-	const uint64_t ID_EST = 100, MAX_RESERVE = 8 * GIGABYTES; // TODO
+	const uint64_t ID_EST = config.oid_title_max > 0 ? 20 : 100, MAX_RESERVE = 8 * GIGABYTES; // TODO
 	assert(chunk.n_seqs == 0);
 	assert(config.threads_ > 0);
 	const uint64_t letters = config.minichunk;
@@ -106,16 +107,17 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 	const bool load_seqs = flag_any(flags(), SequenceFile::Flags::SEQS),
 		load_titles = flag_any(flags(), SequenceFile::Flags::TITLES);
 	Block* block = new Block();
-	const uint64_t size_est = std::min(std::min(max_letters, disk_size_), MAX_RESERVE);
+	const uint64_t size_est = std::min(max_letters, disk_size_);
 	const BlockId entry_est = (size_est + SEQ_LEN_EST - 1) / SEQ_LEN_EST;
 	if (load_seqs)
-		block->seqs().reserve(entry_est, size_est);
-	if (load_titles) {		
-		block->reserve_ids(std::min(ID_EST * entry_est, size_est), entry_est);
+		block->seqs().reserve(entry_est, size_est, true);
+	if (load_titles) {
+		block->reserve_ids(std::min(ID_EST * entry_est, size_est), entry_est, true);
 	}
 	Queue<RawChunk*> queue(p * 4, 1, p, nullptr);
 	Queue<DecodedPackage*> output_queue(p * 4, p, 1, nullptr);
 	const bool byte_limited = type() == Type::FASTA, have_oids = type() == Type::BLAST;
+	uint64_t backlog_size = 0;
 	SimpleThreadPool pool;
 	auto worker = [&](const atomic<bool>& stop) {
 		while (!stop) {
@@ -129,13 +131,16 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 		output_queue.close();
 		};
 	auto writer = [&](const atomic<bool>& stop) {
-		int next = raw_chunk_start;
 		map<int, DecodedPackage*> backlog;
+		uint64_t bytes_processed = 0;
+		int next = raw_chunk_start;
 		while (!stop) {
 			DecodedPackage* pkg;
 			if (!output_queue.wait_and_dequeue(pkg))
 				break;
+			bytes_processed += pkg->byte_size();
 			backlog.emplace(pkg->no, pkg);
+			backlog_size += pkg->byte_size();
 			while (!backlog.empty() && backlog.begin()->first == next) {
 				pkg = backlog.begin()->second;
 				const size_t n_seqs = pkg->seq_count;
@@ -144,7 +149,8 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 				if (load_taxids) {
 					add_taxid_mapping(pkg->taxids);
 				}
-				delete pkg;
+				backlog_size -= pkg->byte_size();
+				delete pkg;				
 				backlog.erase(backlog.begin());
 				++next;
 			}
@@ -159,6 +165,10 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 	RawChunk* rc;
 	uint64_t bytes = 0;
 	const Flags load_flags = flags() | (accs ? Flags::TITLES : Flags::NONE);
+	Heartbeat h([&]() {
+		uint64_t b = 0;
+		*log_stream << "bytes=" << bytes << " backlog=" << backlog_size << endl;
+		});
 	do {
 		rc = raw_chunk(std::min(letters, max_letters - block_letters), load_flags);
 		if (rc->empty()) {
@@ -171,6 +181,8 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 	} while (!pool.stop() && block_letters < max_letters);
 	queue.close();
 	pool.join_all();
+	*log_stream << "building oid table seqs=" << seqs << endl;
+	log_rss();
 	if (type() == Type::FASTA && seqs > 0) {
 		const OId oid_begin = tell_seq();
 		block->block2oid_.reserve((size_t)seqs);
@@ -179,14 +191,15 @@ pair<Block*, int64_t> SequenceFile::load_parallel(const uint64_t max_letters, co
 		static_cast<FastaFile*>(this)->advance_seq_count((OId)seqs);
 	}
 	if (seqs > 0) {
+		*log_stream << "finishing" << endl;
 		if (load_seqs) {
-			block->source_seqs().finish_reserve();
-			block->seqs().finish_reserve();
+			block->source_seqs().finish_reserve(true);
+			block->seqs().finish_reserve(true);
 		}
 		if (load_titles)
-			block->ids().finish_reserve();
+			block->ids().finish_reserve(true);
 		if (value_traits_.seq_type == SequenceType::nucleotide)
-			block->source_seqs_.finish_reserve();
+			block->source_seqs_.finish_reserve(true);
 	}
 	block->raw_bytes_ = bytes;
 	return { block, seqs };

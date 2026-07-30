@@ -27,7 +27,7 @@ struct SequenceSet : public StringSetBase<Letter, Sequence::DELIMITER, 1>
 
 	SequenceSet();
 	SequenceSet(StringSetBase&& string_set):
-		StringSetBase(string_set)
+		StringSetBase(std::move(string_set))
 	{}
 	
 	void print_stats() const;

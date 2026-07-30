@@ -484,8 +484,6 @@ static void run_query_chunk(File &master_out,
 			++n;
 		if (config.lin_stage1_query)
 			++n;
-		if(config.lin_stage1_combo)
-			++n;
 		if (n > 1)
 			throw runtime_error("Multiple linearization options are not allowed to be used together");
 		setup_search(options.sensitivity[query_iteration].sensitivity, options);
@@ -728,7 +726,7 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 			continue;
 
 		if ((!Search::keep_target_id(options) && config.lin_stage1_query && !config.kmer_ranking) || options.min_length_ratio > 0.0) {
-			timer.go("Length sorting queries");
+			timer.go("Length sorting queries"); // TODO
 			options.query.reset(options.query->length_sorted(config.threads_));
 			timer.finish();
 		}

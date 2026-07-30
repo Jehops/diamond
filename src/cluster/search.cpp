@@ -40,7 +40,7 @@ static void run_all_vs_all(Job& job) {
 	config.self = true;
 	config.query_file.clear();
 	config.lin_stage1_query = false;
-	config.ext_.clear();
+	config.gapped_filter_evalue_ = -1.0;
 	//config.comp_based_stats = 1;
 	config.database = job.round() == 0 ? job.root_dir() + "input0.faa" :
 		job.base_dir(job.round() - 1) + PATH_SEPARATOR + "reps" + PATH_SEPARATOR + "reps_all.faa";
@@ -58,7 +58,6 @@ static void run_all_vs_all(Job& job) {
 }
 
 static void run_block_combo(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, string base_dir, unique_ptr<vector<BitVector>>& seed_hit_table) {
-	config.ext_ = "full";
 	config.lin_stage1_query = true;
 	if (r == i) {
 		config.self = true;
@@ -68,6 +67,7 @@ static void run_block_combo(Job& job, const VolumedFile& volumes, int64_t r, int
 		config.query_file = { volumes[i].path };
 		config.self = false;
 	}
+	config.gapped_filter_evalue_ = 0.0;
 	config.chunk_size = 65536;
 	config.database.clear();
 	config.fasta_index_file.clear();
@@ -108,7 +108,7 @@ void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, stri
 	config.output_format = mutual_cover ? vector<string> { "tab", "qseqid", "sseqid", "corrected_bitscore" } : vector<string>{ "tab", "qseqid", "sseqid", "qcovhsp", "scovhsp", "corrected_bitscore" };
 	statistics.reset();
 	config.db_size = volumes.letter_count();
-	job.log("Database letter count: %" PRIu64, config.db_size);
+	job.log("Database letter count: %" PRIu64 " maximum OId: %" PRIu64, config.db_size, job.max_oid());
 	config.max_target_seqs_ = 0;
 	config.toppercent.unset();
 	config.iterate = vector<string>();
@@ -118,10 +118,11 @@ void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, stri
 		config.masking_ = "seg-all";
 	config.iterate.unset();
 	config.algo = Config::Algo::DOUBLE_INDEXED;
-	config.hamming_dist_boundary_check = true;
+	//config.hamming_dist_boundary_check = true;
 	config.mapany = false;
 	config.lin_stage1_target = false;
 	config.symmetrize_evalue = true;
+	config.oid_title_max = job.max_oid();
 	//config.ungapped_filter_query_len = 1;
 	config.output_header.clear();
 	config.output_header.unset();

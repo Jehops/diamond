@@ -98,7 +98,7 @@ static void search_query_offset(const SeedLoc& q,
 	const bool chunked = work_set.cfg.index_chunks > 1;
 	const unsigned hamming_filter_id = work_set.cfg.hamming_filter_id;
 	const bool self = config.self && work_set.cfg.current_ref_block == 0;
-	const bool skip_left_most = work_set.cfg.minimizer_window || work_set.cfg.sketch_size || config.lin_stage1_query || work_set.cfg.lin_stage1_target || config.lin_stage1_combo;
+	const bool skip_left_most = work_set.cfg.minimizer_window || work_set.cfg.sketch_size || config.lin_stage1_query || work_set.cfg.lin_stage1_target;
 	int n = 0;
 	size_t hit_count = 0;
 

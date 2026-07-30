@@ -148,10 +148,9 @@ struct ScoreOnly {
 };
 
 template<typename Id, typename Cbs>
-DiagonalSegment xdrop_ungapped(const Sequence& query, Cbs query_cbs, const Sequence& subject, int qa, int sa, const Id&)
+DiagonalSegment xdrop_ungapped(const Sequence& query, Cbs query_cbs, const Sequence& subject, int qa, int sa, int xdrop, const Id&)
 {
 	Id id;
-	const int xdrop = config.raw_ungapped_xdrop;
 	int score = 0, st = 0;
 	int n = 1, delta = 0, len = 0, ident = 0;
 
@@ -198,18 +197,18 @@ DiagonalSegment xdrop_ungapped(const Sequence& query, Cbs query_cbs, const Seque
 	return DiagonalSegment(qa - delta, sa - delta, len + delta, score, ident);
 }
 
-DiagonalSegment xdrop_ungapped(const Sequence& query, const int8_t* query_cbs, const Sequence& subject, int qa, int sa, bool count_identities) {
+DiagonalSegment xdrop_ungapped(const Sequence& query, const int8_t* query_cbs, const Sequence& subject, int qa, int sa, int xdrop, bool count_identities) {
 	if (count_identities) {
 		if (query_cbs == nullptr)
-			return xdrop_ungapped(query, nullptr, subject, qa, sa, CountIdentities());
+			return xdrop_ungapped(query, nullptr, subject, qa, sa, xdrop, CountIdentities());
 		else
-			return xdrop_ungapped(query, query_cbs, subject, qa, sa, CountIdentities());
+			return xdrop_ungapped(query, query_cbs, subject, qa, sa, xdrop, CountIdentities());
 	}
 	else {
 		if (query_cbs == nullptr)
-			return xdrop_ungapped(query, nullptr, subject, qa, sa, ScoreOnly());
+			return xdrop_ungapped(query, nullptr, subject, qa, sa, xdrop, ScoreOnly());
 		else
-			return xdrop_ungapped(query, query_cbs, subject, qa, sa, ScoreOnly());
+			return xdrop_ungapped(query, query_cbs, subject, qa, sa, xdrop, ScoreOnly());
 	}
 }
 

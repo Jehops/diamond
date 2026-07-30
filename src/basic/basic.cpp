@@ -195,6 +195,9 @@ void Statistics::print() const
 	*log_stream << "Target hits (stage 1) = " << data_[TARGET_HITS1] << endl;
 	*log_stream << "Target hits (stage 2) = " << data_[TARGET_HITS2] << endl;
 	*log_stream << "Target hits (stage 3) = " << data_[TARGET_HITS3] << " (" << data_[TARGET_HITS3_CBS] << " (" << (double)data_[TARGET_HITS3_CBS] * 100.0 / data_[TARGET_HITS3] << "%) with CBS)" << endl;
+	*log_stream << "Reseeked diagonals = " << data_[RESEEKED_DIAGONALS] << endl;
+	*log_stream << "Seed hits filtered by adjacency = " << data_[ADJACENCY_FILTERED_SEED_HITS] << endl;
+	*log_stream << "Seed hits filtered by ungapped extension = " << data_[UNGAPPED_EXTENSION_FILTERED_SEED_HITS] << endl;
 	*log_stream << "Target hits (stage 4) = " << data_[TARGET_HITS4] << endl;
 	*log_stream << "Target hits (stage 5) = " << data_[TARGET_HITS5] << endl;
 	*log_stream << "Target hits (stage 6) = " << data_[TARGET_HITS6] << endl;
@@ -231,6 +234,8 @@ void Statistics::print() const
 	*log_stream << "Time (Gapped filter)         = " << (double)data_[TIME_GAPPED_FILTER] / 1e6 << "s (CPU)" << endl;
 	*log_stream << "Time (Matrix adjust)         = " << (double)data_[TIME_MATRIX_ADJUST] / 1e6 << "s (CPU)" << endl;
 	*log_stream << "Time (Profile generation)    = " << (double)data_[TIME_PROFILE_GENERATION] / 1e6 << "s (CPU)" << endl;
+	*log_stream << "Time (kmer neighbors)        = " << (double)data_[TIME_KMER_NEIGHBORS] / 1e9 << "s (CPU)" << endl;
+	*log_stream << "Time (Keyword tree)          = " << (double)data_[TIME_KEYWORD_TREE] / 1e9 << "s (CPU)" << endl;
 	*log_stream << "Time (Chaining)              = " << (double)data_[TIME_CHAINING] / 1e6 << "s (CPU)" << endl;
 	*log_stream << "Time (DP target sorting)     = " << (double)data_[TIME_TARGET_SORT] / 1e6 << "s (CPU)" << endl;
 	*log_stream << "Time (Query profiles)        = " << (double)data_[TIME_PROFILE] / 1e6 << "s (CPU)" << endl;

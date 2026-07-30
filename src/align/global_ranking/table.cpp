@@ -95,13 +95,13 @@ static pair<int, unsigned> target_score(const FlatArray<Extension::SeedHit>::Dat
 		return { score,context };
 	}
 	std::sort(begin, end);
-	DiagonalSegment d = xdrop_ungapped(query_seq[begin->frame], nullptr, target_seq, begin->i, begin->j, false);
+	DiagonalSegment d = xdrop_ungapped(query_seq[begin->frame], nullptr, target_seq, begin->i, begin->j, config.raw_ungapped_xdrop, false);
 	int score = d.score;
 	unsigned context = begin->frame;
 	for (auto i = begin + 1; i != end; ++i) {
 		if (d.diag() == i->diag() && d.subject_end() >= i->j)
 			continue;
-		d = xdrop_ungapped(query_seq[i->frame], nullptr, target_seq, i->i, i->j, false);
+		d = xdrop_ungapped(query_seq[i->frame], nullptr, target_seq, i->i, i->j, config.raw_ungapped_xdrop, false);
 		if (d.score > score) {
 			score = d.score;
 			context = i->frame;

@@ -27,7 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 int xdrop_ungapped_right(const Letter *query, const Letter *subject, int &len);
 int ungapped_window(const Letter* query, const Letter* subject, int window);
 DiagonalSegment xdrop_ungapped(const Sequence &query, const HauserCorrection& query_bc, const Sequence &subject, int qa, int sa);
-DiagonalSegment xdrop_ungapped(const Sequence& query, const int8_t* query_cbs, const Sequence& subject, int qa, int sa, bool count_identities);
+DiagonalSegment xdrop_ungapped(const Sequence& query, const int8_t* query_cbs, const Sequence& subject, int qa, int sa, int xdrop, bool count_identities);
 DiagonalSegment xdrop_ungapped(const Sequence& query, const Sequence& subject, const DiagonalSegment& anchor);
 int score_range(Sequence query, Sequence subject, int i, int j, int j_end);
 template<typename Cbs>

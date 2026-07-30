@@ -195,6 +195,7 @@ set(DISPATCH_OBJECTS
         "src/dp/score_profile.cpp"
         "src/stats/matrix_adjust/matrix_adjust.cpp"
         "src/stats/matrix_adjust/matrix_adjust_scalar.cpp"
+        "src/align/reseek.cpp"
         )
 
 if(EXTRA)
@@ -387,7 +388,7 @@ set(OBJECTS
         src/masking/motifs.cpp
         src/align/alt_hsp.cpp
         src/data/fasta/fasta_file.cpp
-        src/cluster/multinode/output.cpp
+        src/cluster/output.cpp
         src/cluster/realign.cpp
         src/cluster/reassign.cpp
         src/util/io/read_text_mt.cpp
@@ -421,6 +422,7 @@ set(OBJECTS
         src/cluster/merge.cpp
         src/cluster/search.cpp
         src/util/io/zlib_bridge.cpp
+        src/util/sequence/seqindex.cpp
 )
 
 if(WITH_DNA)

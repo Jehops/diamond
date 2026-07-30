@@ -39,19 +39,234 @@ namespace Search {
 const double SINGLE_INDEXED_SEED_SPACE_MAX_COVERAGE = 0.15;
 
 const map<Sensitivity, SensitivityTraits> sensitivity_traits = {
-	//                               qidx   motifm freqsd minid ug_ev   ug_ev_s gf_ev  idx_chunk qbins ctg_seed  seed_cut block_size reduction min_window sketch
-	{{ Sensitivity::FASTER,         {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         21 }},
-	{ Sensitivity::FAST,            {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::SHAPES6x10,      {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::SHAPES30x10,     {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::DEFAULT,         {true,  true,  50.0,  11,   10000,  10000,  0,     4,        16,   "111111", 0.8,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::LINCLUST_40,     {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::LINCLUST_20,     {true,  true,  50.0,  11,   0,      0,      0,     4,        16,   nullptr,  0.9,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::MID_SENSITIVE,   {true,  true,  20.0,  11,   10000,  10000,  0,     4,        16,   nullptr,  1.0,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::SENSITIVE,       {true,  true,  20.0,  11,   10000,  10000,  1,     4,        16,   "11111",  1.0,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::MORE_SENSITIVE,  {true,  false, 200.0, 11,   10000,  10000,  1,     4,        16,   "11111",  1.0,     2.0,       murphy10, 0,         0 }},
-	{ Sensitivity::VERY_SENSITIVE,  {true,  false, 15.0,  9,    100000, 30000,  1,     1,        16,   nullptr,  1.0,     0.4,       murphy10, 0,         0 }},
-	{ Sensitivity::ULTRA_SENSITIVE, {true,  false, 20.0,  9,    300000, 30000,  1,     1,        64,   nullptr,  1.0,     0.4,       murphy10, 0,         0 }},
+	{{ Sensitivity::FASTER, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		21,        // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::FAST, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::SHAPES6x10, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::SHAPES30x10, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::DEFAULT, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		10000,     // ungapped_evalue
+		10000,     // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		"111111",  // contiguous_seed
+		0.8,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
+	{ Sensitivity::LINCLUST_40, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::LINCLUST_20, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		50.0,      // freq_sd
+		11,        // min_identities
+		0,         // ungapped_evalue
+		0,         // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		0.9,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		4,         // keyword_length
+		12         // keyword_threshold
+	}},
+	{ Sensitivity::MID_SENSITIVE, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		20.0,      // freq_sd
+		11,        // min_identities
+		10000,     // ungapped_evalue
+		10000,     // ungapped_evalue_short
+		0,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		1.0,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,          // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
+	{ Sensitivity::SENSITIVE, {
+		true,      // support_query_indexed
+		true,      // motif_masking
+		20.0,      // freq_sd
+		11,        // min_identities
+		10000,     // ungapped_evalue
+		10000,     // ungapped_evalue_short
+		1,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		"11111",   // contiguous_seed
+		1.0,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,          // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
+	{ Sensitivity::MORE_SENSITIVE, {
+		true,      // support_query_indexed
+		false,     // motif_masking
+		200.0,     // freq_sd
+		11,        // min_identities
+		10000,     // ungapped_evalue
+		10000,     // ungapped_evalue_short
+		1,         // gapped_filter_evalue
+		4,         // index_chunks
+		16,        // query_bins
+		"11111",   // contiguous_seed
+		1.0,       // seed_cut
+		2.0,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,          // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
+	{ Sensitivity::VERY_SENSITIVE, {
+		true,      // support_query_indexed
+		false,     // motif_masking
+		15.0,      // freq_sd
+		9,         // min_identities
+		100000,    // ungapped_evalue
+		30000,     // ungapped_evalue_short
+		1,         // gapped_filter_evalue
+		1,         // index_chunks
+		16,        // query_bins
+		nullptr,   // contiguous_seed
+		1.0,       // seed_cut
+		0.4,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
+	{ Sensitivity::ULTRA_SENSITIVE, {
+		true,      // support_query_indexed
+		false,     // motif_masking
+		20.0,      // freq_sd
+		9,         // min_identities
+		300000,    // ungapped_evalue
+		30000,     // ungapped_evalue_short
+		1,         // gapped_filter_evalue
+		1,         // index_chunks
+		64,        // query_bins
+		nullptr,   // contiguous_seed
+		1.0,       // seed_cut
+		0.4,       // default_block_size
+		murphy10,  // reduction
+		0,         // minimizer_window
+		0,         // sketch_size
+		3,         // keyword_length
+		8.4        // keyword_threshold
+	}},
 } };
 
 const map<Sensitivity, vector<Round>> iterated_sens{
@@ -351,7 +566,10 @@ void setup_search(Sensitivity sens, Search::Config& cfg)
 		cfg.query_bins = std::max((unsigned)std::round((double)config.threads_ / 8), traits.query_bins);
 	::Config::set_option(cfg.minimizer_window, config.minimizer_window_, 0, traits.minimizer_window);
 	::Config::set_option(cfg.sketch_size, config.sketch_size, 0, traits.sketch_size);
-	
+
+	cfg.keyword_length = traits.keyword_length;
+	::Config::set_option(cfg.keyword_threshold, config.word_threshold, 0.0, traits.keyword_threshold);
+
 	if (config.algo == ::Config::Algo::CTG_SEED) {
 		if (!traits.contiguous_seed)
 			throw runtime_error("Contiguous seed mode is not supported for this sensitivity setting.");
@@ -363,7 +581,7 @@ void setup_search(Sensitivity sens, Search::Config& cfg)
 		::shapes = ShapeConfig(config.shape_mask.empty() ? shape_codes.at(sens) : config.shape_mask, config.shapes);
 
 	Reduction::set_reduction(traits.reduction);
-	if ((cfg.lin_stage1_target || config.lin_stage1_query || config.lin_stage1_combo) && shapes[0].weight_ < 10)
+	if ((cfg.lin_stage1_target || config.lin_stage1_query) && shapes[0].weight_ < 10)
 		throw runtime_error("Linearization is only supported for seed shapes of weight >= 10.");
 
 	config.gapped_filter_diag_score = score_matrix.rawscore(config.gapped_filter_diag_bit_score);
@@ -375,14 +593,14 @@ void setup_search(Sensitivity sens, Search::Config& cfg)
 	cfg.cutoff_table = Util::Scores::CutoffTable { cfg.ungapped_evalue };
 	cfg.cutoff_table_short = Util::Scores::CutoffTable { cfg.ungapped_evalue_short };
 
-	if (config.ext_.empty()) {
-		if (config.global_ranking_targets || config.swipe_all || ((config.lin_stage1_query || cfg.lin_stage1_target || config.lin_stage1_combo) && !config.linclust_banded_ext))
+	if (config.extension_mode.empty()) {
+		if (config.global_ranking_targets || config.swipe_all)
 			cfg.extension_mode = Extension::Mode::FULL;
 		else
 			cfg.extension_mode = Extension::default_ext_mode.at(sens);
 	}
 	else {
-		cfg.extension_mode = from_string<Extension::Mode>(config.ext_);
+		cfg.extension_mode = from_string<Extension::Mode>(config.extension_mode);
 		if (cfg.extension_mode != Extension::Mode::FULL) {
 			if (config.global_ranking_targets)
 				throw runtime_error("Global ranking only supports full matrix extension.");

@@ -70,7 +70,7 @@ void gapped_filter_worker(size_t i, size_t thread_id, const LongScoreProfile<int
 	}
 }
 
-pair<FlatArray<SeedHit>, vector<uint32_t>> gapped_filter(const Sequence* query, const HauserCorrection* query_cbs, FlatArray<SeedHit>::Iterator seed_hits, FlatArray<SeedHit>::Iterator seed_hits_end, vector<uint32_t>::const_iterator target_block_ids, Statistics& stat, DP::Flags flags, const Search::Config &params) {
+pair<FlatArray<SeedHit>, vector<uint32_t>> gapped_filter(const Query& query, FlatArray<SeedHit>::Iterator seed_hits, FlatArray<SeedHit>::Iterator seed_hits_end, vector<uint32_t>::const_iterator target_block_ids, Statistics& stat, DP::Flags flags, const Search::Config &params) {
 	const int64_t n = seed_hits_end - seed_hits;
 	FlatArray<SeedHit> hits_out;
 	vector<uint32_t> target_ids_out;
@@ -80,7 +80,7 @@ pair<FlatArray<SeedHit>, vector<uint32_t>> gapped_filter(const Sequence* query, 
 	vector<LongScoreProfile<int8_t>> query_profile;
 	query_profile.reserve(align_mode.query_contexts);
 	for (int i = 0; i < align_mode.query_contexts; ++i)
-		query_profile.push_back(DP::make_profile8(query[i], ::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cbs[i].int8.data() : nullptr, 0));
+		query_profile.push_back(DP::make_profile8(query.sequence[i], query.composition_bias(i), 0));
 	
 	if(flag_any(flags, DP::Flags::PARALLEL)) {
 		mutex mtx;

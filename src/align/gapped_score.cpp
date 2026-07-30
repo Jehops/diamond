@@ -179,7 +179,7 @@ static void add_dp_targets(const WorkTarget& target,
 	}
 }
 
-vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, const char* query_id, const HauserCorrection* query_cb, int source_query_len, DP::Flags flags, const HspValues hsp_values, const Mode mode, ThreadPool& tp, const Search::Config& cfg, Statistics& stat, std::pmr::monotonic_buffer_resource& pool) {
+vector<Target> align(vector<WorkTarget>& targets, const Query& query, DP::Flags flags, const HspValues hsp_values, const Mode mode, ThreadPool& tp, const Search::Config& cfg, Statistics& stat, std::pmr::monotonic_buffer_resource& pool) {
 	array<DP::Targets, MAX_CONTEXT> dp_targets;
 	vector<Target> r;
 	if (targets.empty())
@@ -192,10 +192,10 @@ vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, con
 		if (targets[i].done) {
 			assert(targets[i].hsp[0].size() == 1);
 			assert(align_mode.query_contexts == 1);
-			r.back().add_hit(targets[i].hsp[0].front(), query_seq[targets[i].hsp[0].front().frame].length());
+			r.back().add_hit(targets[i].hsp[0].front(), query.sequence[targets[i].hsp[0].front().frame].length());
 		}
 		else
-			add_dp_targets(targets[i], (BlockId)i, r.back().matrix.get(), query_seq, dp_targets, flags, hsp_values, mode, cfg);
+			add_dp_targets(targets[i], (BlockId)i, r.back().matrix.get(), query.sequence.data(), dp_targets, flags, hsp_values, mode, cfg);
 		if (targets[i].matrix)
 			++cbs_targets;
 	}
@@ -211,11 +211,11 @@ vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, con
 		if (n == 0)
 			continue;
 		DP::Params params{
-			query_seq[frame],
-			query_id,
+			query.sequence[frame],
+			query.title,
 			Frame(frame),
-			source_query_len,
-			::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
+			query.source_length,
+			query.composition_bias(frame),
 			flags,
 			false,
 			0,
@@ -224,8 +224,8 @@ vector<Target> align(vector<WorkTarget>& targets, const Sequence* query_seq, con
 			stat,
 			&tp
 		};
-		DP::AnchoredSwipe::Config acfg{ query_seq[frame],
-			::Stats::CBS::hauser(config.comp_based_stats_.get(Stats::DEFAULT_CBS)) ? query_cb[frame].int8.data() : nullptr,
+		DP::AnchoredSwipe::Config acfg{ query.sequence[frame],
+			query.composition_bias(frame),
 			0, stat, &tp, config.comp_based_stats_.get(Stats::DEFAULT_CBS) == Stats::CBS::COMP_BASED_STATS_AND_MATRIX_ADJUST, cfg.extension_mode, false };
 		list<Hsp> hsp = config.anchored_swipe
 			? DP::BandedSwipe::anchored_swipe(dp_targets[frame], acfg, pool) : DP::BandedSwipe::swipe(dp_targets[frame], params);

@@ -55,7 +55,9 @@ struct SensitivityTraits {
   const int       min_chain_score;
   const double max_overlap_extension;
 #endif
-  const int      sketch_size;
+  const int        sketch_size;
+  const int        keyword_length;
+  const double     keyword_threshold;
 };
 
 struct HashedSeedSet;
@@ -118,7 +120,7 @@ inline bool keep_target_id(const Search::Config& cfg) {
 #ifdef HIT_KEEP_TARGET_ID
 	return true;
 #else
-	return cfg.min_length_ratio != 0.0 || config.global_ranking_targets || (config.self && cfg.current_ref_block == 0) || config.lin_stage1_combo;
+	return cfg.min_length_ratio != 0.0 || config.global_ranking_targets || (config.self && cfg.current_ref_block == 0);
 #endif
 }
 

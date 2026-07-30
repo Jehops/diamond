@@ -1,3 +1,15 @@
+[2.2.5]
+- Improved the performance of the clustering workflows.
+- Linear-time stages of the clustering workflows now by default use banded instead of full-matrix
+  extension (set `--ext full` to use full-matrix extension instead).
+- Added the option `--reseek-diags` to recompute diagonals prior to chaining.
+- Added the option `--reseek-xdrop` to set ungapped x-drop, `--word-threshold` to set the
+  word threshold in bits for k-mer neighbors for the Aho–Corasick automaton, `--double-hit-window`
+  to set the window for double hits when using `--reseek-diags`.
+- Removed the `--linclust-banded-ext` and `--lin-combo` options.
+- Fixed a potential issue of increased memory use in the clustering workflows.
+- Improved the performance of reading FASTA files.
+
 [2.2.4]
 - Improved the performance of the clustering workflows.
 - Improved the performance of reading FASTA files.

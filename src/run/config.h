@@ -104,6 +104,8 @@ struct Config {
 	double                                     freq_sd;
 	Loc                                        minimizer_window;
 	Loc                                        sketch_size;
+	int                                        keyword_length;
+	double                                     keyword_threshold;
 	bool                                       lin_stage1_target;
 	unsigned                                   hamming_filter_id;
 	double                                     min_length_ratio;
