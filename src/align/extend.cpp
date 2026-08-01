@@ -75,8 +75,10 @@ Query::Query(BlockId block_id, Statistics& stats, const Search::Config& cfg, std
 	const Loc qlen = sequence.front().length();
 	if (qlen <= config.short_query_max_len)
 		ungapped_cutoff = score_matrix.rawscore(config.short_query_ungapped_bitscore);
-	else
+	else if (cfg.ungapped_evalue > 0.0)
 		ungapped_cutoff = score_matrix.rawscore(score_matrix.bitscore_norm(cfg.ungapped_evalue, qlen));
+	else
+		ungapped_cutoff = 1;
 	ungapped_cutoff = std::max(ungapped_cutoff, 1);
 
 	const unsigned cbs = static_cast<unsigned>(config.comp_based_stats_.get(Stats::DEFAULT_CBS));

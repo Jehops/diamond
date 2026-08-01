@@ -28,6 +28,8 @@ struct CutoffTable {
 	CutoffTable() {}
 	
 	CutoffTable(double evalue) {
+		if (evalue == 0.0)
+			throw std::runtime_error("E-value must be greater than 0.");
 		for (int b = 1; b <= MAX_BITS; ++b) {
 			data_[b] = score_matrix.rawscore(score_matrix.bitscore_norm(evalue, 1 << (b - 1)));
 		}
@@ -51,6 +53,8 @@ struct CutoffTable2D {
 	CutoffTable2D() {}
 
 	CutoffTable2D(double evalue) {
+		if (evalue == 0.0)
+			throw std::runtime_error("E-value must be greater than 0.");
 		for (int b1 = 1; b1 <= MAX_BITS; ++b1)
 			for (int b2 = 1; b2 <= MAX_BITS; ++b2) {
 				data_[b1][b2] = calc_min_score(1 << (b1 - 1), 1 << (b2 - 1), evalue);
