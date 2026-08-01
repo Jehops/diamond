@@ -196,5 +196,10 @@ std::vector<int> make_blocks(Job& job, VolumedFile& volumes, std::vector<std::un
 std::string len_sort(Job& job, VolumedFile& volumes);
 std::vector<OId> build_merged(Job& job);
 void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, std::string base_dir, std::unique_ptr<std::vector<BitVector>>& seed_hit_table);
+void configure_round(Job& job, const VolumedFile& volumes);
+bool use_lin_index(const Job& job);
+std::string lin_index_file(const std::string& volume_path);
+void build_lin_indices(Job& job, const VolumedFile& volumes);
+void remove_lin_indices(const VolumedFile& volumes);
 std::pmr::unordered_map<OId, std::pmr::string> read_mapping_table(Job& job, const Volume& vol, size_t v, std::pmr::memory_resource& pool, bool remove);
 std::pmr::unordered_map<OId, std::pmr::string> read_mapping_tables(Job& job, const std::unordered_set<OId>& wanted, std::pmr::memory_resource& pool);

@@ -102,7 +102,7 @@ private:
 	char* line_buf_;
 	size_t line_buf_size_;
 	std::unique_ptr<Decompressor> decompressor_;
-	std::unique_ptr<CompressorX> compressor_;
+	std::unique_ptr<Compressor> compressor_;
 
 };
 

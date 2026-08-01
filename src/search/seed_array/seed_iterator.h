@@ -151,7 +151,9 @@ private:
 		uint64_t seed, hash;
 		Loc pos;
 		bool operator<(const Kmer& k) const {
-			return hash < k.hash;
+			if (hash != k.hash)
+				return hash < k.hash;
+			return pos < k.pos;
 		}
 	};
 	std::vector<Kmer> data_;

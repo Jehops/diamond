@@ -20,30 +20,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 #include "decompressor.h"
 
-struct CompressorX {
+struct Compressor {
 	virtual size_t fwrite(const void* buffer, size_t size, size_t count, FILE* stream) = 0;	
 	virtual void close(FILE* stream) {}
 	virtual CompressionLib lib() const = 0;
-	virtual ~CompressorX() = default;
+	virtual ~Compressor() = default;
 };
 
-struct PassThroughCompressor : CompressorX {
+struct PassThroughCompressor : Compressor {
 	size_t fwrite(const void* buffer, size_t size, size_t count, FILE* stream) override {
 		return std::fwrite(buffer, size, count, stream);
 	}	
 	virtual CompressionLib lib() const override {
 		return CompressionLib::NONE;
 	}
+	virtual ~PassThroughCompressor() = default;
 };
 
-struct ZlibCompressor : CompressorX {
+struct ZlibCompressor : Compressor {
 	ZlibCompressor();
 	size_t fwrite(const void* buffer, size_t size, size_t count, FILE* stream) override;
 	void close(FILE* stream) override;
 	virtual CompressionLib lib() const override {
 		return CompressionLib::ZLIB;
 	}
-	~ZlibCompressor();
+	virtual ~ZlibCompressor();
 private:
 	void deflate_loop(FILE* stream, int flush);
 	static const size_t chunk_size = 1llu << 20;
@@ -55,14 +56,14 @@ private:
 };
 
 #ifdef WITH_ZSTD
-struct ZstdCompressor : CompressorX {
+struct ZstdCompressor : Compressor {
 	ZstdCompressor();
 	size_t fwrite(const void* buffer, size_t size, size_t count, FILE* stream) override;
 	void close(FILE* stream) override;
 	virtual CompressionLib lib() const override {
 		return CompressionLib::ZSTD;
 	}
-	~ZstdCompressor();
+	virtual ~ZstdCompressor();
 private:
 	void write_out(FILE* stream, size_t count);
 	static const size_t chunk_size = 1llu << 20;

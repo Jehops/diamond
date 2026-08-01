@@ -41,6 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "data/fasta/fasta_file.h"
 #include "legacy/dmnd/dmnd.h"
 #include "data/blastdb/blastdb.h"
+#include "search/lin_index/lin_index.h"
 
 #ifdef WITH_DNA
 #include "../dna/dna_index.h"
@@ -158,7 +159,16 @@ static void run_ref_chunk(SequenceFile &db_file,
 			cfg.target_seed_hits->emplace_back(cfg.target->seqs().raw_len());
 	}
 
-	if (!config.swipe_all) {
+	if (cfg.lin_index) {
+		timer.go("Scanning member block");
+		Search::scan_lin_index(cfg);
+		statistics.inc(Statistics::TIME_SEARCH, timer.microseconds());
+		timer.go("Finishing seed hit buffer");
+		cfg.seed_hit_buf->finish_writing();
+		timer.finish();
+		log_rss();
+	}
+	else if (!config.swipe_all) {
 		timer.go("Building reference histograms");
 		if (query_seeds_bitset.get()) {
 			EnumCfg enum_cfg{ nullptr, 0, 0, cfg.seed_encoding, nullptr, false, false, cfg.seed_complexity_cut, MaskingAlgo::NONE, cfg.minimizer_window, false, false, cfg.sketch_size, cfg.target_seed_hits.get() };
@@ -320,7 +330,7 @@ static void run_query_iteration(const unsigned query_iteration,
 		options.ranking_table.reset(new Search::Config::RankingTable(query_seqs.size() * config.global_ranking_targets / align_mode.query_contexts));
 	}
 
-	if (!config.swipe_all && !config.target_indexed) {
+	if (!config.swipe_all && !config.target_indexed && !options.lin_index) {
 		timer.go("Building query histograms");
 		if (config.self && options.target_seed_hits && options.target_seed_hits->empty()) {
 			options.target_seed_hits->reserve(shapes.count());
@@ -696,6 +706,7 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 
 	//for (;query_file_offset < db_file->sequence_count(); ++options.current_query_block) { TODO
 	for (;; ++options.current_query_block) {
+		options.current_ref_block = 0;
 		log_rss();
 
 		if (options.self) {
@@ -725,9 +736,24 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 		if ((config.mp_query_chunk >= 0) && (options.current_query_block != config.mp_query_chunk))
 			continue;
 
-		if ((!Search::keep_target_id(options) && config.lin_stage1_query && !config.kmer_ranking) || options.min_length_ratio > 0.0) {
-			timer.go("Length sorting queries"); // TODO
-			options.query.reset(options.query->length_sorted(config.threads_));
+		if (config.lin_index_file.empty()) {
+			if ((!Search::keep_target_id(options) && config.lin_stage1_query && !config.kmer_ranking) || options.min_length_ratio > 0.0) {
+				timer.go("Length sorting queries"); // TODO
+				options.query.reset(options.query->length_sorted(config.threads_));
+				timer.finish();
+			}
+		}
+		else {
+			// The block ids of the seed index refer to the order of the block on
+			// disk, which must not be changed here.
+			if (options.current_query_block > 0)
+				throw runtime_error("Seed index search requires the query file to fit into a single block.");
+			timer.go("Loading seed index");
+			options.lin_index.reset(new Search::LinIndex(config.lin_index_file));
+			const Search::LinIndex::Header& h = options.lin_index->header();
+			if (h.seq_count != (uint64_t)options.query->seqs().size() || h.raw_len != (uint64_t)options.query->seqs().raw_len())
+				throw runtime_error("Seed index does not match the query block: " + config.lin_index_file);
+			*message_stream << "Seed index size = " << options.lin_index->size() << ", entries = " << h.entry_count << endl;
 			timer.finish();
 		}
 

@@ -224,7 +224,7 @@ namespace Chaining {
 		const int shift = d.diag() - e.diag();
 		int gap_score = shift != 0 ? -score_matrix.gap_open() - abs(shift)*score_matrix.gap_extend() : 0;
 		const int space = shift > 0 ? d.j - e.subject_last() : d.i - e.query_last();
-		int prefix_score = 0, link_score = 0, link_j, diff1 = 0, path_max, path_min, prefix_score_begin;
+		int prefix_score = 0, link_score = 0, link_j = 0, diff1 = 0, path_max = 0, path_min = 0, prefix_score_begin = 0;
 		if (space <= 0 || space_penalty == 0.0) {
 			vector<DiagGraph::Edge>::const_iterator edge = diags.get_edge(d_idx, d.j);
 			if (edge != diags.edges.end() && edge->prefix_score > e.prefix_score + gap_score + d.score)

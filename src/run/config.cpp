@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/data_structures/deque.h"
 #include "align/global_ranking/global_ranking.h"
 #include "search/search.h"
+#include "search/lin_index/lin_index.h"
 #include "masking/masking.h"
 #include "align/def.h"
 
@@ -57,6 +58,8 @@ Config::Config(std::unique_ptr<std::vector<BitVector>>& target_seed_hits) :
 	query_file(nullptr),
 	out(nullptr),
 	target_seed_hits(target_seed_hits),
+	current_query_block(0),
+	current_ref_block(0),
 	iteration_query_aligned(0)
 {
 	if (config.iterate.present()) {

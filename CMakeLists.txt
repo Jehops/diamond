@@ -196,6 +196,7 @@ set(DISPATCH_OBJECTS
         "src/stats/matrix_adjust/matrix_adjust.cpp"
         "src/stats/matrix_adjust/matrix_adjust_scalar.cpp"
         "src/align/reseek.cpp"
+        "src/search/lin_index/scan.cpp"
         )
 
 if(EXTRA)
@@ -421,6 +422,8 @@ set(OBJECTS
         src/cluster/make_blocks.cpp
         src/cluster/merge.cpp
         src/cluster/search.cpp
+        src/cluster/lin_index.cpp
+        src/search/lin_index/lin_index.cpp
         src/util/io/zlib_bridge.cpp
         src/util/sequence/seqindex.cpp
 )

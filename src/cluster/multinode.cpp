@@ -76,6 +76,13 @@ void Job::log(const ClusterStats& stats) {
 
 static void run_block_combos(Job& job, const VolumedFile& volumes, const string& base_dir, const string& aln_path) {
 	int64_t r;
+	const bool lin_index = use_lin_index(job);
+	if (lin_index) {
+		configure_round(job, volumes);
+		build_lin_indices(job, volumes);
+		if (!job.goon())
+			return;
+	}
 	Atomic q(base_dir + "queue", job);
 	Atomic finished(base_dir + "finished", job);
 	const int64_t n = (int64_t)volumes.size();
@@ -99,6 +106,8 @@ static void run_block_combos(Job& job, const VolumedFile& volumes, const string&
 	Atomic concat_lock(base_dir + "concat_lock", job);
 	Atomic concat_done(base_dir + "concat_done", job);
 	if (concat_lock.fetch_add() == 0) {
+		if (lin_index)
+			remove_lin_indices(volumes);
 		job.log("Concatenating alignment files");
 		ofstream out(aln_path);
 		for (uint64_t r = 0; r < volumes.size(); ++r) {

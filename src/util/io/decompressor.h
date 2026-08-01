@@ -43,6 +43,7 @@ struct Decompressor {
 	virtual int ungetc(int c, FILE* stream) = 0;
 	virtual void reset() = 0;	
 	virtual bool eof(FILE* stream) const = 0;
+	virtual ~Decompressor() {}
 };
 
 template<typename ReadByte>
@@ -119,7 +120,7 @@ struct ZlibDecompressor : Decompressor {
 	virtual bool eof(FILE*) const override {
 		return eos_ && pushback_ == EOF;
 	}
-	~ZlibDecompressor();
+	virtual ~ZlibDecompressor();
 private:
 	static const size_t chunk_size = 1llu << 20;
 	z_stream strm_;
@@ -143,7 +144,7 @@ struct ZstdDecompressor : Decompressor {
 	virtual bool eof(FILE*) const override {
 		return eos_ && pushback_ == EOF;
 	}
-	~ZstdDecompressor();
+	virtual ~ZstdDecompressor();
 private:
 	static const size_t chunk_size = 1llu << 20;
 	ZSTD_DStream* strm_ = nullptr;

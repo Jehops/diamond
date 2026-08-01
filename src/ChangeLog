@@ -9,6 +9,8 @@
 - Removed the `--linclust-banded-ext` and `--lin-combo` options.
 - Fixed a potential issue of increased memory use in the clustering workflows.
 - Improved the performance of reading FASTA files.
+- Fixed a potential inter-toolchain inconsistency in search workflows using sketching.
+- Fixed a potential non-determinism in the clustering workflows.
 
 [2.2.4]
 - Improved the performance of the clustering workflows.

@@ -59,6 +59,10 @@ static void run_all_vs_all(Job& job) {
 
 static void run_block_combo(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, string base_dir, unique_ptr<vector<BitVector>>& seed_hit_table) {
 	config.lin_stage1_query = true;
+	// The seed index of block i holds, for every seed, the occurrence in the
+	// longest sequence of the block. Block r is scanned against it, so that no
+	// seed array has to be built for either block.
+	config.lin_index_file = use_lin_index(job) ? lin_index_file(volumes[i].path) : string();
 	if (r == i) {
 		config.self = true;
 		config.query_file.clear();
@@ -91,8 +95,9 @@ static void run_block_combo(Job& job, const VolumedFile& volumes, int64_t r, int
 	job.stats().extensions_computed += statistics.get(Statistics::EXT16) + statistics.get(Statistics::EXT32) + statistics.get(Statistics::EXT8);
 }
 
-void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, string base_dir, unique_ptr<vector<BitVector>>& seed_hit_table) {
+void configure_round(Job& job, const VolumedFile& volumes) {
 	config.command = Config::blastp;
+	config.lin_index_file.clear();
 	const bool mutual_cover = config.mutual_cover.present();
 	const vector<string> round_coverage = config.round_coverage.empty() ? Cluster::default_round_cov(job.round_count()) : config.round_coverage;
 	const double cov_cutoff = mutual_cover ? config.mutual_cover.get_present() : config.member_cover,
@@ -126,6 +131,10 @@ void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, stri
 	//config.ungapped_filter_query_len = 1;
 	config.output_header.clear();
 	config.output_header.unset();
+}
+
+void run_search(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, string base_dir, unique_ptr<vector<BitVector>>& seed_hit_table) {
+	configure_round(job, volumes);
 	if(job.is_linear_round())
 		run_block_combo(job, volumes, r, i, base_dir, seed_hit_table);
 	else

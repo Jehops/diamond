@@ -360,6 +360,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("round-approx-id", 0, "Per-round approx-id cutoffs for cascaded clustering", round_approx_id)
 		("aln-out", 0, "Output file for clustering alignments", aln_out)
 		("reps", 0, "Output file for representative sequences in FASTA format. Only includes id and sequence (no additional header data).", reps_out)
+		("seed-index", 0, "Use precomputed block seed indexes in linear clustering rounds", seed_index)
 		("single-step", 0, "Perform one computational step of clustering then exit", single_step);
 
 	auto& memory_opt = parser.add_group("Memory options", { cluster, RECLUSTER, CLUSTER_REASSIGN, GREEDY_VERTEX_COVER, DEEPCLUST, LINCLUST, CLUSTER_REALIGN });
