@@ -360,7 +360,6 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("round-approx-id", 0, "Per-round approx-id cutoffs for cascaded clustering", round_approx_id)
 		("aln-out", 0, "Output file for clustering alignments", aln_out)
 		("reps", 0, "Output file for representative sequences in FASTA format. Only includes id and sequence (no additional header data).", reps_out)
-		("seed-index", 0, "Use precomputed block seed indexes in linear clustering rounds", seed_index)
 		("single-step", 0, "Perform one computational step of clustering then exit", single_step);
 
 	auto& memory_opt = parser.add_group("Memory options", { cluster, RECLUSTER, CLUSTER_REASSIGN, GREEDY_VERTEX_COVER, DEEPCLUST, LINCLUST, CLUSTER_REALIGN });
@@ -633,6 +632,7 @@ Config::Config(int argc, const char **argv, bool check_io, CommandLineParser& pa
 		("hamming-ext", 0, "", hamming_ext)
 		("diag-filter-id", 0, "", diag_filter_id)
 		("diag-filter-cov", 0, "", diag_filter_cov)
+		("seed-index", 0, "", seed_index)
 		("dbtype", 0, "type of sequences in database file (nucl/prot)", dbstring, string("prot"))
 		("cluster-similarity", 0, "Clustering similarity measure (default=\"normalized_bitscore_global\")", cluster_similarity)
 		("cluster-threshold", 0, "Threshold for the similarity measure (default=50%)", cluster_threshold)
