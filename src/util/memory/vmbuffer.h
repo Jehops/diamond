@@ -40,6 +40,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // than it does with base pages — rounding a 1 KB buffer up to a huge page would
 // fault in 2 MB of physical memory for it, which no TLB saving pays back.
 //
+// A caller that only learns after construction whether the buffer will get big
+// enough to be worth it can turn huge pages on then, with
+// request_huge_pages().
+//
 // Call huge_pages_active() to learn what you actually got.
 //
 // Two reservation modes:
@@ -255,6 +259,34 @@ public:
     }
     std::size_t granularity()       const noexcept { return gran_; }
 
+    // Switch a buffer constructed with HugePages::Off over to
+    // HugePages::Transparent, for callers that only learn how big the buffer
+    // will get after it exists. Activation stays as lazy as it is for a buffer
+    // constructed that way: the granularity switches on the first commit of a
+    // whole huge page. Returns false, leaving the buffer untouched, where the
+    // platform has no huge pages or the reservation cannot honour them.
+    bool request_huge_pages() {
+        const std::size_t hps = detail::huge_page_size();
+        if (hps_) return true;      // already requested
+        if (hps == 0) return false;  // no huge pages on this platform
+        if (base_) {
+            // A fixed reservation is a hard ceiling and its base cannot move,
+            // so neither the alignment nor the ceiling can be made to hold
+            // under huge-page rounding.
+            if (fixed_) return false;
+            if (reinterpret_cast<std::uintptr_t>(base_) & (hps - 1)) {
+                // Reserved before the request and so only base-page aligned;
+                // move it now, while it is small, rather than on the growth
+                // that activates huge pages.
+                hps_ = hps;               // align() picks it up
+                relocate(committed_);
+                return true;
+            }
+        }
+        hps_ = hps;
+        return true;
+    }
+
     unsigned char&       operator[](std::size_t i)       noexcept { return base_[i]; }
     const unsigned char& operator[](std::size_t i) const noexcept { return base_[i]; }
 
@@ -312,7 +344,7 @@ private:
     // Address space is cheap, relocation is not: reserve well past what is
     // asked for so that an unreserved fill pattern rarely has to copy.
     enum : std::size_t {
-        RESERVE_FACTOR = 16,
+        RESERVE_FACTOR = 2,
         MIN_RESERVE    = std::size_t(1) << 20
     };
 
@@ -381,8 +413,11 @@ private:
 // without copying anything.
 template<typename T>
 class VmVector {
-    static_assert(std::is_trivially_copyable<T>::value,
-                  "VmVector requires a trivially copyable element type");
+
+#if __GNUC__ >= 5 || _MSC_VER || __clang__
+    static_assert(std::is_trivially_copyable<T>::value, "VmVector requires a trivially copyable element type");
+#endif
+
 public:
     using value_type      = T;
     using size_type       = std::size_t;
@@ -429,6 +464,9 @@ public:
     const_iterator cend()   const noexcept { return end(); }
 
     void reserve(size_type n) { buf_.reserve_bytes(n * sizeof(T)); }
+
+    bool request_huge_pages() { return buf_.request_huge_pages(); }
+    bool huge_pages_active() const noexcept { return buf_.huge_pages_active(); }
 
     void resize(size_type n) {
         const size_type s = size();

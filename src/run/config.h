@@ -130,8 +130,6 @@ struct Config {
 	std::unique_ptr<RankingBuffer>             global_ranking_buffer;
 	std::unique_ptr<RankingTable>              ranking_table;
 	std::unique_ptr<std::vector<BitVector>>&   target_seed_hits;
-	// Seed index of the query (reference) block, used by the linear clustering
-	// rounds instead of building a seed array for either block.
 	std::unique_ptr<LinIndex>                  lin_index;
 	
 #ifdef WITH_DNA

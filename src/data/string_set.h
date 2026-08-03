@@ -33,11 +33,12 @@ struct StringSetBase
 	using Id = BlockId;
 	using Pos = int64_t;
 
-	enum { PERIMETER_PADDING = 256 };
+	enum { PERIMETER_PADDING = 256 };	
+	enum : size_t { HUGE_PAGE_THRESHOLD = size_t(16) << 20 };
 	static const char DELIMITER = padding_char;
 
 	StringSetBase():
-		data_ (PERIMETER_PADDING, padding_char, HugePages::Transparent)
+		data_ (PERIMETER_PADDING, padding_char)
 	{
 		limits_.push_back(PERIMETER_PADDING);
 	}
@@ -60,7 +61,9 @@ struct StringSetBase
 
 	void reserve(size_t entries, size_t length, bool log_message = false) {
 		limits_.reserve(entries + 1);
-		const size_t d = length + 2 * PERIMETER_PADDING + entries * padding_len;
+		const size_t d = length + 2 * PERIMETER_PADDING + entries * padding_len;		
+		if (d * sizeof(T) >= HUGE_PAGE_THRESHOLD)
+			data_.request_huge_pages();
 		data_.reserve(d);
 		if (log_message)
 			*log_stream << "reserve=" << (entries + 1) * sizeof(Pos) + d * sizeof(T) << std::endl;

@@ -277,6 +277,9 @@ static void run_query_iteration(const unsigned query_iteration,
 	if (query_iteration > 0)
 		options.query_skip.reset(new vector<bool> (query_aligned));
 
+	if (options.lin_index)
+		config.algo = ::Config::Algo::DOUBLE_INDEXED;
+
 	if (config.algo == ::Config::Algo::AUTO &&
 		(!sensitivity_traits.at(config.sensitivity).support_query_indexed
 			|| query_seqs.letters() > MAX_INDEX_QUERY_SIZE
@@ -743,19 +746,8 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 				timer.finish();
 			}
 		}
-		else {
-			// The block ids of the seed index refer to the order of the block on
-			// disk, which must not be changed here.
-			if (options.current_query_block > 0)
-				throw runtime_error("Seed index search requires the query file to fit into a single block.");
-			timer.go("Loading seed index");
-			options.lin_index.reset(new Search::LinIndex(config.lin_index_file));
-			const Search::LinIndex::Header& h = options.lin_index->header();
-			if (h.seq_count != (uint64_t)options.query->seqs().size() || h.raw_len != (uint64_t)options.query->seqs().raw_len())
-				throw runtime_error("Seed index does not match the query block: " + config.lin_index_file);
-			*message_stream << "Seed index size = " << options.lin_index->size() << ", entries = " << h.entry_count << endl;
-			timer.finish();
-		}
+		else if (options.current_query_block > 0)
+			throw runtime_error("Seed index search requires the query file to fit into a single block.");
 
 		if (options.current_query_block == 0 && *options.output_format != OutputFormat::daa && options.query->has_ids())
 			options.output_format->print_header(*options.out, align_mode.mode, config.matrix.c_str(), score_matrix.gap_open(), score_matrix.gap_extend(), config.max_evalue, options.query->ids()[0],
@@ -766,6 +758,12 @@ static void master_thread(TaskTimer &total_timer, Config &options)
 			const MaskingStat stats = mask_seqs(options.query->seqs(), Masking::get(), true, options.query_masking);
 			timer.finish();
 			stats.print(*message_stream);
+		}
+
+		if (!config.lin_index_file.empty()) {
+			options.lin_index.reset(new Search::LinIndex(config.lin_index_file, *options.query, options, config.threads_));
+			const Search::LinIndex::Header& h = options.lin_index->header();
+			*message_stream << "Seed index size = " << options.lin_index->size() << ", entries = " << h.entry_count << endl;
 		}
 
 		run_query_chunk(*options.out, unaligned_file.get(), aligned_file.get(), options);

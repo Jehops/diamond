@@ -58,10 +58,10 @@ const map<string, const StandardMatrix&> StandardMatrix::matrices = { { "blosum4
 	{ "pam250", pam250 }, { "pam30", pam30 }, { "pam70", pam70 } };
 
 void StandardMatrix::init_float_views() const {
-	int i = 0;
+	size_t i = 0;
 	for (; i < TRUE_AA; ++i) {
 		background_freqs_f[i] = (float)background_freqs[i];
-		int j = 0;
+		size_t j = 0;
 		for (; j < TRUE_AA; ++j)
 			joint_probs_f[i * PADDED_AA + j] = (float)joint_probs[i][j];
 		for (; j < PADDED_AA; ++j)

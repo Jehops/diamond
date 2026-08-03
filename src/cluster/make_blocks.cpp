@@ -291,7 +291,7 @@ static const Loc len_partition[255] = {
 
 static uint64_t len_bucket(Loc len)
 {
-	constexpr uint64_t N = static_cast<uint64_t>(std::size(len_partition));
+	constexpr uint64_t N = sizeof(len_partition) / sizeof(len_partition[0]);
 	auto it = std::lower_bound(std::begin(len_partition), std::end(len_partition), len);
 	uint64_t ans = static_cast<uint64_t>(std::distance(std::begin(len_partition), it));
 	return ans;

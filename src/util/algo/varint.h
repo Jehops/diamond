@@ -49,6 +49,41 @@ inline char* write_varuint32(uint32_t x, char* out)
 	}
 }
 
+inline char* write_varuint64(uint64_t x, char* out)
+{
+	while (x >= 128) {
+		*out++ = (char)(uint8_t)(x | 128);
+		x >>= 7;
+	}
+	*out++ = (char)(uint8_t)x;
+	return out;
+}
+
+inline int varuint64_length(uint64_t x)
+{
+	int n = 1;
+	while (x >= 128) {
+		x >>= 7;
+		++n;
+	}
+	return n;
+}
+
+inline std::pair<uint64_t, const char*> read_varuint64(const char* ptr) {
+	uint64_t x = 0;
+	int shift = 0;
+	for (;;) {
+		const uint8_t b = (uint8_t)*ptr++;
+		x |= (uint64_t)(b & 127) << shift;
+		if ((b & 128) == 0)
+			break;
+		shift += 7;
+		if (shift > 63)
+			throw std::runtime_error("Format error: Invalid varint encoding.");
+	}
+	return { x, ptr };
+}
+
 inline std::pair<uint32_t, const char*> read_varuint32(const char* ptr) {
 	uint8_t b0, b1;
 	uint16_t b2;

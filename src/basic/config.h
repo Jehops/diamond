@@ -280,8 +280,6 @@ struct Config
 	Loc minimizer_window_;
 	bool lin_stage1_query;
 	bool lin_stage1_target;
-	// Seed index of the query block for linear clustering rounds. Set internally
-	// by the clustering workflow, not a command line option.
 	string lin_index_file;
 	bool seed_index;
 	int64_t min_task_trace_pts;

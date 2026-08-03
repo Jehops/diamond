@@ -92,7 +92,7 @@ Query::Query(BlockId block_id, Statistics& stats, const Search::Config& cfg, std
 	if ((config.reseek_diags || config.lin_stage1_query || config.lin_stage1_target) && (cfg.extension_mode == Extension::Mode::BANDED_FAST || cfg.extension_mode == Extension::Mode::BANDED_SLOW)) {
 		if (sequence.size() > 1)
 			throw runtime_error("Reseeking diagonals is not supported for translated queries.");
-		seqindex = std::make_unique<Seqindex>(sequence.front(), cfg.keyword_length, cfg.keyword_threshold, pool, stats);
+		seqindex.reset(new Seqindex(sequence.front(), cfg.keyword_length, cfg.keyword_threshold, pool, stats));
 	}
 }
 

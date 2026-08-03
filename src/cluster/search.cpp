@@ -58,10 +58,7 @@ static void run_all_vs_all(Job& job) {
 }
 
 static void run_block_combo(Job& job, const VolumedFile& volumes, int64_t r, int64_t i, string base_dir, unique_ptr<vector<BitVector>>& seed_hit_table) {
-	config.lin_stage1_query = true;
-	// The seed index of block i holds, for every seed, the occurrence in the
-	// longest sequence of the block. Block r is scanned against it, so that no
-	// seed array has to be built for either block.
+	config.lin_stage1_query = true;	
 	config.lin_index_file = use_lin_index(job) ? lin_index_file(volumes[i].path) : string();
 	if (r == i) {
 		config.self = true;

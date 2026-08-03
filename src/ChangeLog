@@ -11,6 +11,8 @@
 - Improved the performance of reading FASTA files.
 - Fixed a potential inter-toolchain inconsistency in search workflows using sketching.
 - Fixed a potential non-determinism in the clustering workflows.
+- Fixed a bug causing invalid line breaks in the output file when using the `qtitle` output field
+  with FASTQ files.
 
 [2.2.4]
 - Improved the performance of the clustering workflows.

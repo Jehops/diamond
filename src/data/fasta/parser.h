@@ -244,7 +244,7 @@ struct FastqTokenizer : public TokenizerBase
 		const int64_t lineno = file.line_count;
 		if (line.empty() || line[0] != '@' || file.eof())
 			throw MalformedFastqRecord(lineno);
-		id = line.substr(1) + '\n';
+		id = line.substr(1);
 		int64_t len = 0;
 		seq.clear();
 		for (;;) {
