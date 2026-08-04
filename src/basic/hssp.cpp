@@ -356,6 +356,7 @@ Hsp::Hsp(const IntermediateRecord& r, unsigned query_source_len, Loc qlen, Loc t
 
 Hsp::Hsp(const ApproxHsp& h, Loc qlen, Loc tlen) :
 	backtraced(true),
+	seed_only(false),
 	score(h.score),
 	frame(0),
 	length(h.query_range.length()),
